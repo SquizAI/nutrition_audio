@@ -143,7 +143,7 @@ export const HealthHistorySection: React.FC<HealthHistorySectionProps> = ({ form
         <TextArea 
           id="other-conditions"
           placeholder="List any other medical conditions that may affect your nutrition needs, separated by commas"
-          value={formData.medicalConditions.filter(c => !commonConditions.includes(c)).join(', ')}
+          value={formData.medicalConditions.filter((c: string) => !commonConditions.includes(c)).join(', ')}
           onChange={handleMedicalConditionsChange}
         />
       </FormGroup>

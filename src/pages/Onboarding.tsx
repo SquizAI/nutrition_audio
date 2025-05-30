@@ -307,7 +307,7 @@ const CardFooter = styled.div`
   gap: 1rem;
 `;
 
-const Button = styled.button<{ $primary?: boolean; $disabled?: boolean }>`
+const Button = styled.button<{ $primary?: boolean }>`
   padding: 1rem 2rem;
   border-radius: 60px;
   font-size: 1rem;
@@ -319,7 +319,7 @@ const Button = styled.button<{ $primary?: boolean; $disabled?: boolean }>`
   overflow: hidden;
   min-width: 120px;
   
-  ${({ $primary, $disabled }) => $primary ? `
+  ${({ $primary }) => $primary ? `
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
@@ -406,14 +406,6 @@ const Onboarding: React.FC = () => {
     sleepHours: '',
     stressLevel: ''
   });
-  
-  // Create placeholder components for onboarding sections
-  const createPlaceholderSection = (title: string) => (
-    <div>
-      <h3>{title} Section</h3>
-      <p>This is a placeholder for the {title.toLowerCase()} section of the onboarding process.</p>
-    </div>
-  );
   
   // Define the sections for the onboarding process
   const sections: OnboardingSection[] = [

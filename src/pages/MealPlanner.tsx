@@ -1584,7 +1584,7 @@ const mockMeals: Meal[] = [
 ];
 
 const MealPlanner: React.FC = () => {
-  const { selectedDate, setSelectedDate } = useMealPlan();
+  const { selectedDate } = useMealPlan();
   const [view, setView] = useState<ViewType>('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -1920,9 +1920,6 @@ const MealPlanner: React.FC = () => {
   );
 
   const renderDayView = () => {
-    const totalCalories = [...selectedDayMeals.breakfast, ...selectedDayMeals.lunch, ...selectedDayMeals.dinner, ...selectedDayMeals.snacks]
-      .reduce((sum, meal) => sum + meal.calories, 0);
-
     return (
       <DayViewContainer>
         <MealSection>
