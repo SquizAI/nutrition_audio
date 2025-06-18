@@ -446,19 +446,19 @@ const Onboarding: React.FC = () => {
             </select>
           </div>
           <div className="form-group">
-            <label>Height (cm)</label>
+            <label>Height (inches)</label>
             <input 
               type="number" 
-              placeholder="Enter your height in cm"
+              placeholder="Enter your height in inches"
               value={formData.height}
               onChange={(e) => setFormData({...formData, height: e.target.value})}
             />
           </div>
           <div className="form-group">
-            <label>Weight (kg)</label>
+            <label>Weight (lbs)</label>
             <input 
               type="number" 
-              placeholder="Enter your weight in kg"
+              placeholder="Enter your weight in lbs"
               value={formData.weight}
               onChange={(e) => setFormData({...formData, weight: e.target.value})}
             />

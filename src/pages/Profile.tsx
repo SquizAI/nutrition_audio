@@ -232,8 +232,8 @@ const Profile: React.FC = () => {
     bio: 'Fitness enthusiast and nutrition explorer',
     daysActive: 45,
     streakDays: 12,
-    height: 175,
-    weight: 70,
+    height: 69,
+    weight: 154,
     age: 32,
     gender: 'Male',
     email: 'alex.johnson@example.com',
@@ -281,11 +281,11 @@ const Profile: React.FC = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span>Height</span>
-                <span>{user.height} cm</span>
+                <span>{user.height} inches</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span>Weight</span>
-                <span>{user.weight} kg</span>
+                <span>{user.weight} pounds</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span>BMI</span>
@@ -372,11 +372,11 @@ const Profile: React.FC = () => {
               
               <FormRow>
                 <FormGroup>
-                  <Label htmlFor="height">Height (cm)</Label>
+                  <Label htmlFor="height">Height (inches)</Label>
                   <Input id="height" type="number" defaultValue={user.height} />
                 </FormGroup>
                 <FormGroup>
-                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Label htmlFor="weight">Weight (pounds)</Label>
                   <Input id="weight" type="number" defaultValue={user.weight} />
                 </FormGroup>
               </FormRow>
