@@ -439,14 +439,21 @@ class AdvancedParser {
   }
 
   private async directMealParsing(text: string, isImageAnalysis: boolean): Promise<any | null> {
+    // First, check if the text contains food-related keywords
     const foodKeywords = [
-      'ate', 'had', 'eating', 'consumed', 'finished', 'devoured', 'munched',
-      'breakfast', 'lunch', 'dinner', 'snack', 'meal', 'food', 'dish'
+      'ate', 'eat', 'eating', 'had', 'having', 'consumed', 'drank', 'drink', 'drinking',
+      'food', 'meal', 'snack', 'breakfast', 'lunch', 'dinner', 'brunch',
+      'chicken', 'beef', 'fish', 'salmon', 'tuna', 'turkey', 'pork', 'ham', 'bacon',
+      'pizza', 'burger', 'sandwich', 'salad', 'soup', 'pasta', 'rice', 'bread',
+      'apple', 'banana', 'orange', 'strawberry', 'grapes', 'vegetables', 'fruits',
+      'cheese', 'milk', 'yogurt', 'egg', 'eggs', 'cereal', 'oatmeal',
+      'coffee', 'tea', 'juice', 'water', 'soda', 'beer', 'wine',
+      'calories', 'protein', 'carbs', 'fat', 'nutrition'
     ];
-    
+
     const portionKeywords = [
-      'half', 'quarter', 'double', 'triple', 'small', 'medium', 'large',
-      'cup', 'cups', 'tablespoon', 'teaspoon', 'ounce', 'ounces', 'gram', 'grams',
+      'cup', 'cups', 'ounce', 'ounces', 'oz', 'pound', 'pounds', 'lb', 'lbs',
+      'gram', 'grams', 'g', 'kilogram', 'kg', 'tablespoon', 'tsp', 'tbsp',
       'slice', 'slices', 'piece', 'pieces', 'serving', 'servings'
     ];
 
@@ -504,7 +511,8 @@ Response format:
     if (!response.ok) return null;
 
     const data = await response.json();
-    let content = data.choices[0]?.message?.content;
+    // Handle new response format
+    let content = data.success ? data.message : (data.choices?.[0]?.message?.content || null);
     
     if (!content) return null;
 
@@ -579,7 +587,8 @@ Return valid JSON only - no markdown formatting.`
     if (!response.ok) return null;
 
     const data = await response.json();
-    let content = data.choices[0]?.message?.content;
+    // Handle new response format
+    let content = data.success ? data.message : (data.choices?.[0]?.message?.content || null);
     
     if (!content) return null;
 
