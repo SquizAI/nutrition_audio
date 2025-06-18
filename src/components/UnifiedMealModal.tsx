@@ -27,7 +27,11 @@ import {
   MessageCircle,
   Bot,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Link,
+  Globe,
+  Search,
+  ExternalLink
 } from 'lucide-react';
 
 interface Meal {
@@ -49,10 +53,10 @@ interface Meal {
 interface UnifiedMealModalProps {
   isOpen: boolean;
   onClose: () => void;
-  meal: Meal | null;
+  meal?: Meal | null;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
   date: string;
-  mode?: 'view' | 'edit' | 'create';
+  mode?: 'view' | 'edit' | 'create' | 'url-import' | 'url-results';
   onOpenChat?: () => void;
 }
 
@@ -407,10 +411,10 @@ const SuggestionMacros = styled.div`
 `;
 
 const SuggestionIngredients = styled.p`
-  color: rgba(255, 255, 255, 0.6);
+  color: #888;
   font-size: 0.8rem;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.3;
 `;
 
 // ACTION BUTTONS
@@ -569,6 +573,182 @@ const QuickModButton = styled.button`
   }
 `;
 
+// URL Import Styled Components
+const UrlInputContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const UrlInput = styled.input`
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999;
+  }
+`;
+
+const UrlButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  
+  &:hover:not(:disabled) {
+    background: #5a67d8;
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const ErrorMessage = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fed7d7;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  color: #c53030;
+  font-size: 14px;
+  margin-top: 12px;
+`;
+
+const InfoList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const InfoItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #4a5568;
+  
+  svg {
+    color: #48bb78;
+    flex-shrink: 0;
+  }
+`;
+
+const RestaurantMenuGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+`;
+
+const MenuItemCard = styled.div`
+  padding: 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  
+  &:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const MenuItemHeader = styled.div`
+  display: flex;
+  justify-content: between;
+  align-items: start;
+  margin-bottom: 8px;
+  gap: 12px;
+`;
+
+const MenuItemName = styled.h4`
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  flex: 1;
+`;
+
+const MenuItemPrice = styled.span`
+  font-size: 14px;
+  font-weight: 600;
+  color: #48bb78;
+  background: #f0fff4;
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+`;
+
+const MenuItemDescription = styled.p`
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #718096;
+  line-height: 1.4;
+`;
+
+const MenuItemNutrition = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+`;
+
+const NutritionBadge = styled.span`
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+`;
+
+const MenuItemCategory = styled.div`
+  display: inline-block;
+  background: #667eea;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+`;
+
 const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -582,6 +762,14 @@ const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({
   
   const [currentMode, setCurrentMode] = useState(initialMode);
   const [editData, setEditData] = useState<Partial<Meal>>({});
+  
+  // URL Import states
+  const [urlInput, setUrlInput] = useState('');
+  const [isLoadingMenu, setIsLoadingMenu] = useState(false);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [selectedMenuItem, setSelectedMenuItem] = useState<any>(null);
+  const [restaurantName, setRestaurantName] = useState('');
+  const [urlError, setUrlError] = useState('');
   
   useEffect(() => {
     if (meal) {
@@ -642,6 +830,70 @@ const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({
       removeMeal(date, mealType, meal.id);
       onClose();
     }
+  };
+
+  // URL Scraping functions
+  const handleUrlScraping = async () => {
+    if (!urlInput.trim()) {
+      setUrlError('Please enter a valid restaurant URL');
+      return;
+    }
+
+    setIsLoadingMenu(true);
+    setUrlError('');
+    setMenuItems([]);
+
+    try {
+      const response = await fetch('/api/restaurant-menu', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: urlInput.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to scrape menu: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setMenuItems(data.menu_items || []);
+        setRestaurantName(data.restaurant_name || 'Restaurant');
+        setCurrentMode('url-results');
+      } else {
+        setUrlError(data.error || 'Failed to load menu items');
+      }
+    } catch (error) {
+      console.error('Error scraping menu:', error);
+      setUrlError('Unable to load menu. Please check the URL and try again.');
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  };
+
+  const handleSelectMenuItem = (item: any) => {
+    setSelectedMenuItem(item);
+    setEditData({
+      name: item.name,
+      calories: item.calories || 0,
+      protein: item.protein || 0,
+      carbs: item.carbs || 0,
+      fat: item.fat || 0,
+      ingredients: item.ingredients || [],
+      instructions: item.description || ''
+    });
+    setCurrentMode('edit');
+  };
+
+  const resetUrlImport = () => {
+    setUrlInput('');
+    setMenuItems([]);
+    setSelectedMenuItem(null);
+    setRestaurantName('');
+    setUrlError('');
+    setCurrentMode('create');
   };
 
   const handleGenerateAlternatives = async () => {
@@ -1050,6 +1302,125 @@ const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({
     );
   };
 
+  // URL Import Mode
+  const renderUrlImportMode = () => {
+    return (
+      <>
+        <Section>
+          <SectionTitle>
+            <Globe size={20} />
+            Import from Restaurant Menu
+          </SectionTitle>
+          <p style={{ marginBottom: '20px', color: '#666', fontSize: '14px' }}>
+            Paste a restaurant website URL to automatically extract menu items with nutrition information.
+          </p>
+          
+          <UrlInputContainer>
+            <UrlInput
+              type="url"
+              placeholder="https://restaurant-website.com/menu"
+              value={urlInput}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrlInput(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleUrlScraping()}
+            />
+            <UrlButton 
+              onClick={handleUrlScraping}
+              disabled={isLoadingMenu || !urlInput.trim()}
+            >
+              {isLoadingMenu ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <Search size={16} />
+              )}
+              {isLoadingMenu ? 'Loading...' : 'Load Menu'}
+            </UrlButton>
+          </UrlInputContainer>
+          
+          {urlError && (
+            <ErrorMessage>
+              <AlertCircle size={16} />
+              {urlError}
+            </ErrorMessage>
+          )}
+        </Section>
+
+        <Section>
+          <SectionTitle>
+            <Utensils size={20} />
+            How it works
+          </SectionTitle>
+          <InfoList>
+            <InfoItem>
+              <CheckCircle size={16} />
+              <span>Paste any restaurant website URL</span>
+            </InfoItem>
+            <InfoItem>
+              <CheckCircle size={16} />
+              <span>We'll extract menu items and nutrition info</span>
+            </InfoItem>
+            <InfoItem>
+              <CheckCircle size={16} />
+              <span>Select an item to add to your meal plan</span>
+            </InfoItem>
+          </InfoList>
+        </Section>
+      </>
+    );
+  };
+
+  // URL Results Mode
+  const renderUrlResultsMode = () => {
+    return (
+      <>
+        <Section>
+          <SectionTitle>
+            <ExternalLink size={20} />
+            Menu from {restaurantName}
+          </SectionTitle>
+          <p style={{ marginBottom: '20px', color: '#666', fontSize: '14px' }}>
+            Found {menuItems.length} menu items. Click any item to add it to your meal.
+          </p>
+          
+          <RestaurantMenuGrid>
+            {menuItems.map((item, index) => (
+              <MenuItemCard 
+                key={index}
+                onClick={() => handleSelectMenuItem(item)}
+              >
+                <MenuItemHeader>
+                  <MenuItemName>{item.name}</MenuItemName>
+                  {item.price && <MenuItemPrice>{item.price}</MenuItemPrice>}
+                </MenuItemHeader>
+                
+                {item.description && (
+                  <MenuItemDescription>{item.description}</MenuItemDescription>
+                )}
+                
+                <MenuItemNutrition>
+                  <NutritionBadge>{item.calories} cal</NutritionBadge>
+                  <NutritionBadge>P:{item.protein}g</NutritionBadge>
+                  <NutritionBadge>C:{item.carbs}g</NutritionBadge>
+                  <NutritionBadge>F:{item.fat}g</NutritionBadge>
+                </MenuItemNutrition>
+                
+                {item.category && (
+                  <MenuItemCategory>{item.category}</MenuItemCategory>
+                )}
+              </MenuItemCard>
+            ))}
+          </RestaurantMenuGrid>
+          
+          <ActionButtons>
+            <ActionButton $variant="secondary" onClick={resetUrlImport}>
+              <ArrowRight style={{ transform: 'rotate(180deg)' }} size={18} />
+              Try Different URL
+            </ActionButton>
+          </ActionButtons>
+        </Section>
+      </>
+    );
+  };
+
   return (
     <ModalOverlay $isOpen={isOpen} onClick={onClose}>
       <ModalContainer onClick={(e) => e.stopPropagation()}>
@@ -1094,6 +1465,13 @@ const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({
               <Plus size={16} />
               Suggestions
             </ModeTab>
+            <ModeTab 
+              $active={currentMode === 'url-import' || currentMode === 'url-results'} 
+              onClick={() => setCurrentMode('url-import')}
+            >
+              <Link size={16} />
+              Restaurant Menu
+            </ModeTab>
           </ModeTabs>
         </UnifiedHeader>
 
@@ -1101,6 +1479,8 @@ const UnifiedMealModal: React.FC<UnifiedMealModalProps> = ({
           {currentMode === 'view' && renderViewMode()}
           {currentMode === 'edit' && renderEditMode()}
           {currentMode === 'create' && renderCreateMode()}
+          {currentMode === 'url-import' && renderUrlImportMode()}
+          {currentMode === 'url-results' && renderUrlResultsMode()}
         </ModalContent>
       </ModalContainer>
     </ModalOverlay>
