@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, Outlet } from 'react-router-dom';
+import { ThemeProvider } from 'styled-components';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
 import { MealPlanProvider } from './services/mealPlanContext';
+import { GlobalStyles } from './styles/GlobalStyles';
+import { theme } from './styles/theme';
 import Layout from './components/Layout';
 
 // Import all pages
 import Dashboard from './pages/Dashboard';
 import MealPlanner from './pages/MealPlanner';
+import DailyTracker from './pages/DailyTracker';
 import Progress from './pages/Progress';
 import Community from './pages/Community';
 import Insights from './pages/Insights';
@@ -48,37 +52,41 @@ const App: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <MealPlanProvider>
-          <Router>
-            <Routes>
-              {/* Onboarding route without Layout */}
-              <Route path="/onboarding" element={<Onboarding />} />
-              
-              {/* Protected routes with Layout */}
-              <Route element={
-                isOnboardingCompleted ? <LayoutWrapper /> : <Navigate to="/onboarding" replace />
-              }>
-                {/* Main routes */}
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/meal-planner" element={<MealPlanner />} />
-                <Route path="/progress" element={<Progress />} />
-                <Route path="/community" element={<Community />} />
-                <Route path="/insights" element={<Insights />} />
-                <Route path="/music-mood" element={<MusicMood />} />
+      <ThemeProvider theme={theme}>
+        <GlobalStyles />
+        <ToastProvider>
+          <MealPlanProvider>
+            <Router>
+              <Routes>
+                {/* Onboarding route without Layout */}
+                <Route path="/onboarding" element={<Onboarding />} />
+                
+                {/* Protected routes with Layout */}
+                <Route element={
+                  isOnboardingCompleted ? <LayoutWrapper /> : <Navigate to="/onboarding" replace />
+                }>
+                  {/* Main routes */}
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/meal-planner" element={<MealPlanner />} />
+                  <Route path="/daily-tracker" element={<DailyTracker />} />
+                  <Route path="/progress" element={<Progress />} />
+                  <Route path="/community" element={<Community />} />
+                  <Route path="/insights" element={<Insights />} />
+                  <Route path="/music-mood" element={<MusicMood />} />
 
-                {/* Profile routes */}
-                <Route path="/profile" element={<Profile />} />
-              </Route>
+                  {/* Profile routes */}
+                  <Route path="/profile" element={<Profile />} />
+                </Route>
 
-              {/* Redirect to onboarding if not completed */}
-              <Route path="*" element={
-                isOnboardingCompleted ? <Navigate to="/" /> : <Navigate to="/onboarding" />
-              } />
-            </Routes>
-          </Router>
-        </MealPlanProvider>
-      </ToastProvider>
+                {/* Redirect to onboarding if not completed */}
+                <Route path="*" element={
+                  isOnboardingCompleted ? <Navigate to="/" /> : <Navigate to="/onboarding" />
+                } />
+              </Routes>
+            </Router>
+          </MealPlanProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 };

@@ -1,9 +1,35 @@
 [build]
   publish = "dist"
   command = "npm run build"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/api/session"
+  to = "/.netlify/functions/session"
+  status = 200
+
+[[redirects]]
+  from = "/api/openai-chat"
+  to = "/.netlify/functions/openai-chat"
+  status = 200
+
+[[redirects]]
+  from = "/api/elevenlabs-tts"
+  to = "/.netlify/functions/elevenlabs-tts"
+  status = 200
+
+[[redirects]]
+  from = "/api/usda-nutrition"
+  to = "/.netlify/functions/usda-nutrition"
+  status = 200
+
+[[redirects]]
+  from = "/api/openai-vision"
+  to = "/.netlify/functions/openai-vision"
+  status = 200
 
 [[redirects]]
   from = "/*"

@@ -1,7 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useMealPlan } from '../services/mealPlanContext';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, addDays, subDays, addWeeks, subWeeks, addMonths, subMonths, isSameDay, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, subDays, addWeeks, subWeeks, isSameDay } from 'date-fns';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar,
+  Coffee,
+  Salad,
+  UtensilsCrossed,
+  Apple,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Clock,
+  ShoppingCart,
+  List,
+  MessageCircle,
+  Bot,
+  CalendarDays
+} from 'lucide-react';
+import GroceryList from '../components/GroceryList';
+import UnifiedMealModal from '../components/UnifiedMealModal';
+import ChatMobile from '../components/ChatMobile';
 
 // Animation keyframes
 const slideInUp = keyframes`
@@ -15,43 +36,30 @@ const slideInUp = keyframes`
   }
 `;
 
-// Types for meal data
-interface Meal {
-  id: string;
-  name: string;
-  image: string;
-  prepTime: number;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  ingredients: string[];
-  description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  tags: string[];
-  instructions: string[];
-}
+const pulse = keyframes`
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+`;
 
-interface DayMeals {
-  date: string;
-  breakfast: Meal[];
-  lunch: Meal[];
-  dinner: Meal[];
-  snacks: Meal[];
-}
-
+// MOBILE-FIRST RESPONSIVE CONTAINER
 const PageContainer = styled.div`
-  padding: 1rem;
-  padding-bottom: 6rem; /* Space for mobile footer */
-  max-width: 1600px;
-  margin: 0 auto;
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a0b2e 25%, #16213e 50%, #0f3460 75%, #533a7b 100%);
+  width: 100%;
+  max-width: 100vw;
+  padding: 0.75rem;
+  padding-bottom: 10rem; /* Increased for better clearance above sticky footer */
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
   
   @media (min-width: 768px) {
-    padding: 3rem 2rem;
-    padding-bottom: 3rem;
+    padding: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
   }
   
   &:before {
@@ -62,400 +70,489 @@ const PageContainer = styled.div`
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 20% 80%, rgba(236, 72, 153, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+      radial-gradient(circle at 20% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
     pointer-events: none;
+    z-index: 0;
   }
 `;
 
 const Header = styled.div`
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   position: relative;
   z-index: 1;
+  animation: ${slideInUp} 0.6s ease-out;
   
   @media (min-width: 768px) {
-    margin-bottom: 4rem;
-  }
-`;
-
-const Title = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 900;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.75rem;
-  text-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  letter-spacing: -0.02em;
-  
-  @media (min-width: 768px) {
-    font-size: 4rem;
     margin-bottom: 1.5rem;
   }
 `;
 
-const Subtitle = styled.p`
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  max-width: 500px;
-  margin: 0 auto;
-  line-height: 1.6;
-  font-weight: 400;
-  padding: 0 1rem;
+const Title = styled.h1`
+  font-size: 1.75rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+  
+  @media (min-width: 480px) {
+    font-size: 2rem;
+  }
   
   @media (min-width: 768px) {
-    font-size: 1.4rem;
-    max-width: 700px;
-    line-height: 1.7;
-    padding: 0;
+    font-size: 2.5rem;
   }
 `;
 
-const ViewControls = styled.div`
-  display: flex;
-  justify-content: center;
-  margin-bottom: 2rem;
-  position: relative;
-  z-index: 1;
-  padding: 0 1rem;
+const Subtitle = styled.p`
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  
+  @media (min-width: 480px) {
+    font-size: 0.9rem;
+  }
   
   @media (min-width: 768px) {
-    margin-bottom: 3rem;
-    padding: 0;
+    font-size: 1rem;
   }
+`;
+
+// COMPACT CONTROL BAR
+const ControlBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
+  animation: ${slideInUp} 0.6s ease-out 0.1s both;
+  
+  @media (min-width: 768px) {
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+`;
+
+const ViewToggle = styled.div`
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 0.25rem;
 `;
 
 const ViewButton = styled.button<{ $active: boolean }>`
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 0.75rem;
   border: none;
   background: ${({ $active }) => 
     $active 
       ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' 
-      : 'rgba(255, 255, 255, 0.1)'};
+      : 'transparent'};
   color: white;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
   cursor: pointer;
-  margin: 0 0.5rem;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: ${({ $active }) => 
-    $active 
-      ? '0 8px 32px rgba(236, 72, 153, 0.4)' 
-      : '0 4px 16px rgba(0, 0, 0, 0.2)'};
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
   
   @media (min-width: 768px) {
-    padding: 1.2rem 2.5rem;
-    font-size: 1rem;
-    margin: 0 0.75rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
   }
   
   &:hover {
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.5);
+    background: ${({ $active }) => 
+      $active 
+        ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)'
+        : 'rgba(255, 255, 255, 0.1)'};
   }
 `;
 
-const NavigationBar = styled.div`
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  
+  @media (min-width: 768px) {
+    gap: 0.75rem;
+  }
+`;
+
+const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  background: ${({ $variant }) => 
+    $variant === 'primary' 
+      ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)'
+      : 'rgba(255, 255, 255, 0.1)'};
+  color: white;
+  
+  @media (min-width: 768px) {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+  }
+`;
+
+// ENHANCED WEEK CAROUSEL
+const WeekCarousel = styled.div`
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+  animation: ${slideInUp} 0.6s ease-out 0.2s both;
+  
+  @media (min-width: 768px) {
+    margin-bottom: 1.5rem;
+  }
+`;
+
+const WeekHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.8);
-  padding: 1rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  margin-bottom: 2rem;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  position: relative;
-  z-index: 1;
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+`;
+
+const WeekTitle = styled.h2`
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0;
   
   @media (min-width: 768px) {
-    padding: 2rem 2.5rem;
-    border-radius: 24px;
-    margin-bottom: 3rem;
+    font-size: 1.3rem;
   }
 `;
 
-const NavButton = styled.button`
+const WeekNavButton = styled.button`
   background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
   border: none;
   color: white;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   @media (min-width: 768px) {
-    width: 56px;
-    height: 56px;
-    font-size: 1.4rem;
-    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+    width: 40px;
+    height: 40px;
   }
   
   &:hover {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.6);
-  }
-  
-  &:active {
-    transform: scale(0.95) rotate(5deg);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
   }
 `;
 
-const DateDisplay = styled.h2`
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: white;
-  margin: 0;
-  text-align: center;
-  letter-spacing: -0.01em;
-  
-  @media (min-width: 768px) {
-    font-size: 2rem;
-  }
-`;
-
-const ContentArea = styled.div`
+const WeekScrollContainer = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  position: relative;
-  z-index: 1;
-  
-  @media (min-width: 1200px) {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 3rem;
-  }
-`;
-
-const MainContent = styled.div`
-  position: relative;
-  order: 2;
-  
-  @media (min-width: 1200px) {
-    order: 1;
-  }
-`;
-
-const SidebarContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  order: 1;
-  
-  @media (min-width: 768px) {
-    flex-direction: row;
-  }
-  
-  @media (min-width: 1200px) {
-    flex-direction: column;
-    gap: 2rem;
-    order: 2;
-  }
-`;
-
-// Week View Components
-const WeekContainer = styled.div`
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow-x: auto;
-  
-  @media (min-width: 768px) {
-    border-radius: 24px;
-    padding: 3rem;
-  }
-`;
-
-const WeekTable = styled.div`
-  display: grid;
-  grid-template-columns: 100px repeat(7, 1fr);
   gap: 0.5rem;
-  min-width: 800px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 0.5rem 0 1rem 0;
+  scroll-snap-type: x mandatory;
+  
+  /* Hide scrollbar but keep functionality */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  
+  /* Enhanced touch scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   
   @media (min-width: 768px) {
-    grid-template-columns: 120px repeat(7, 1fr);
-    gap: 1rem;
-    min-width: 1000px;
-  }
-  
-  @media (min-width: 1400px) {
-    min-width: 1200px;
-  }
-`;
-
-const TimeSlotHeader = styled.div`
-  display: flex;
-  align-items: center;
-  font-weight: 700;
-  color: white;
-  font-size: 0.8rem;
-  padding: 0.75rem 0;
-  border-bottom: 2px solid rgba(236, 72, 153, 0.3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  
-  @media (min-width: 768px) {
-    font-size: 1rem;
+    gap: 0.75rem;
     padding: 1rem 0;
   }
+  
+  @media (min-width: 1024px) {
+    gap: 1rem;
+  }
 `;
 
-const DayHeader = styled.div<{ $isToday: boolean }>`
-  text-align: center;
-  padding: 1rem 0.5rem;
-  border-bottom: 2px solid rgba(236, 72, 153, 0.3);
+const DayCard = styled.div<{ $isSelected: boolean; $isToday: boolean }>`
+  min-width: calc(33.333vw - 1rem);
+  max-width: 240px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 0.75rem;
+  border: 1px solid ${({ $isSelected, $isToday }) => 
+    $isSelected ? '#ec4899' : $isToday ? '#8b5cf6' : 'rgba(255, 255, 255, 0.1)'};
+  scroll-snap-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
   position: relative;
+  min-height: 180px;
   
-  @media (min-width: 768px) {
-    padding: 1.5rem 1rem;
+  @media (min-width: 480px) {
+    min-width: calc(33.333vw - 1.5rem);
+    max-width: 280px;
+    padding: 1rem;
+    min-height: 200px;
   }
   
-  &:before {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${({ $isToday }) => 
-      $isToday ? 'linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%)' : 'transparent'};
+  @media (min-width: 768px) {
+    min-width: 320px;
+    max-width: 360px;
+    padding: 1.25rem;
+    min-height: 220px;
+  }
+  
+  @media (min-width: 1024px) {
+    min-width: 360px;
+    max-width: 400px;
+    padding: 1.5rem;
+    min-height: 250px;
+  }
+  
+  ${({ $isSelected }) => $isSelected && `
+    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.2);
+    transform: scale(1.02);
+    
+    &:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+      border-radius: 16px 16px 0 0;
+    }
+  `}
+  
+  &:hover {
+    transform: ${({ $isSelected }) => $isSelected ? 'scale(1.02)' : 'scale(1.01)'};
+    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.15);
   }
 `;
 
-const DayNumber = styled.div`
-  font-size: 1.4rem;
-  font-weight: 800;
+const DayHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+`;
+
+const DayInfo = styled.div`
+  flex: 1;
+`;
+
+const DayName = styled.h3`
   color: white;
-  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem 0;
   
   @media (min-width: 768px) {
-    font-size: 1.8rem;
+    font-size: 1.1rem;
   }
 `;
 
-const DayName = styled.div`
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.7);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
+const DayDate = styled.p`
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  margin: 0;
   
   @media (min-width: 768px) {
     font-size: 0.8rem;
   }
 `;
 
-const MealSlot = styled.div`
-  padding: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+const DayTotalCalories = styled.div`
+  text-align: right;
   
-  @media (min-width: 768px) {
-    padding: 1rem;
+  span {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 900;
+    display: block;
+    
+    @media (min-width: 768px) {
+      font-size: 1.4rem;
+    }
   }
   
-  &:hover {
-    background: rgba(236, 72, 153, 0.05);
+  small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    
+    @media (min-width: 768px) {
+      font-size: 0.7rem;
+    }
   }
 `;
 
-const MealItem = styled.div`
+const MealSlots = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  
+  @media (min-width: 768px) {
+    gap: 0.75rem;
+  }
+`;
+
+const MealSlot = styled.div`
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  border-radius: 10px;
+  padding: 0.5rem;
   cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  
+  @media (min-width: 768px) {
+    padding: 0.75rem;
+    min-height: 70px;
+  }
+  
+  &:hover {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.3);
+    transform: translateY(-1px);
+  }
+`;
+
+const MealType = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  
+  span {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    
+    @media (min-width: 768px) {
+      font-size: 0.7rem;
+    }
+  }
+`;
+
+const MealContent = styled.div`
+  h4 {
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 0 0 0.2rem 0;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    
+    @media (min-width: 768px) {
+      font-size: 0.8rem;
+    }
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.65rem;
+    margin: 0;
+    
+    @media (min-width: 768px) {
+      font-size: 0.7rem;
+    }
+  }
+`;
+
+const EmptySlot = styled.div`
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.65rem;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  
+  @media (min-width: 768px) {
+    font-size: 0.7rem;
+  }
+`;
+
+// IMPROVED REGENERATE SECTION
+const RegenerateSection = styled.div`
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  animation: ${slideInUp} 0.6s ease-out 0.3s both;
   
   @media (min-width: 768px) {
     padding: 1.5rem;
-    border-radius: 16px;
+    margin-bottom: 1.5rem;
+  }
+`;
+
+const RegenerateButton = styled.button`
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  @media (min-width: 768px) {
+    padding: 1rem 2rem;
+    font-size: 1rem;
   }
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.3);
-    border-color: #ec4899;
-    background: rgba(236, 72, 153, 0.1);
-  }
-`;
-
-const MealHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-  
-  @media (min-width: 768px) {
-    margin-bottom: 0.75rem;
-  }
-`;
-
-const MealName = styled.div`
-  font-weight: 700;
-  color: white;
-  font-size: 0.85rem;
-  line-height: 1.3;
-  
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
-`;
-
-const MealActions = styled.div`
-  display: flex;
-  gap: 0.25rem;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  
-  @media (min-width: 768px) {
-    gap: 0.5rem;
-  }
-  
-  ${MealItem}:hover & {
-    opacity: 1;
-  }
-`;
-
-const ActionIcon = styled.button<{ $variant?: 'refresh' | 'info' }>`
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: ${({ $variant }) => 
-    $variant === 'refresh' ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255, 255, 255, 0.1)'};
-  color: ${({ $variant }) => $variant === 'refresh' ? 'white' : 'rgba(255, 255, 255, 0.7)'};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.8rem;
-  
-  @media (min-width: 768px) {
-    width: 32px;
-    height: 32px;
-    font-size: 0.9rem;
-  }
-  
-  &:hover {
-    transform: scale(1.1) rotate(${({ $variant }) => $variant === 'refresh' ? '180deg' : '0'});
-    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
   }
   
   &:disabled {
@@ -465,90 +562,13 @@ const ActionIcon = styled.button<{ $variant?: 'refresh' | 'info' }>`
   }
 `;
 
-const MealWeekDescription = styled.div`
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.3;
-  margin-bottom: 0.5rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  
-  @media (min-width: 768px) {
-    font-size: 0.85rem;
-    margin-bottom: 0.75rem;
-    -webkit-line-clamp: 3;
-  }
-`;
-
-const MealNutrition = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  
-  @media (min-width: 768px) {
-    gap: 0.75rem;
-  }
-`;
-
-const NutritionBadge = styled.div<{ $color: string }>`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: ${({ $color }) => $color};
-  
-  @media (min-width: 768px) {
-    font-size: 0.7rem;
-  }
-  
-  &:before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: ${({ $color }) => $color};
-    
-    @media (min-width: 768px) {
-      width: 6px;
-      height: 6px;
-    }
-  }
-`;
-
-const EmptySlot = styled.div`
-  padding: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
-  font-style: italic;
-  font-size: 0.8rem;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-    font-size: 0.9rem;
-  }
-`;
-
 const LoadingSpinner = styled.div`
-  width: 10px;
-  height: 10px;
-  border: 2px solid rgba(236, 72, 153, 0.3);
-  border-top: 2px solid #ec4899;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  
-  @media (min-width: 768px) {
-    width: 12px;
-    height: 12px;
-  }
   
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -556,1755 +576,800 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-// Day View Components
+// Add floating chat button
+const FloatingChatButton = styled.button<{ $isOpen: boolean }>`
+  position: fixed;
+  bottom: 6rem;
+  right: 1rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4);
+  z-index: 999;
+  display: ${({ $isOpen }) => $isOpen ? 'none' : 'flex'};
+  align-items: center;
+  justify-content: center;
+  animation: pulse 3s ease-in-out infinite;
+  
+  /* Hide on mobile since sticky footer has chat button */
+  @media (max-width: 767px) {
+    display: none;
+  }
+  
+  @media (min-width: 768px) {
+    bottom: 2rem;
+    width: 70px;
+    height: 70px;
+    display: ${({ $isOpen }) => $isOpen ? 'none' : 'flex'};
+  }
+  
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.6);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+// DAY VIEW COMPONENTS
 const DayViewContainer = styled.div`
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: ${slideInUp} 0.6s ease-out 0.2s both;
   
   @media (min-width: 768px) {
-    border-radius: 24px;
-    padding: 3rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
   }
 `;
 
-const MealSection = styled.div`
-  margin-bottom: 2rem;
-  
-  @media (min-width: 768px) {
-    margin-bottom: 3rem;
-  }
-`;
-
-const MealSectionHeader = styled.div`
+const DayViewHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid rgba(236, 72, 153, 0.2);
-  
-  @media (min-width: 768px) {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-  }
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const MealSectionTitle = styled.h3`
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: white;
-  margin: 0;
-  
-  @media (min-width: 768px) {
-    font-size: 1.5rem;
-  }
-`;
-
-const MealTime = styled.span`
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(236, 72, 153, 0.2);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  
-  @media (min-width: 768px) {
-    font-size: 0.9rem;
-  }
-`;
-
-const MealGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
-  }
-  
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-`;
-
-const MealCard = styled.div`
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 15px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 32px rgba(236, 72, 153, 0.3);
-    border-color: rgba(236, 72, 153, 0.5);
-  }
-`;
-
-const MealImage = styled.div<{ $image: string }>`
-  height: 160px;
-  background: url(${({ $image }) => $image}) center/cover;
-  background-color: #1a0b2e;
-  position: relative;
-  
-  @media (min-width: 768px) {
-    height: 180px;
-  }
-`;
-
-const MealBadge = styled.div<{ $difficulty: string }>`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: ${({ $difficulty }) => 
-    $difficulty === 'Easy' ? '#10b981' :
-    $difficulty === 'Medium' ? '#f59e0b' : '#ef4444'};
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  
-  @media (min-width: 768px) {
-    font-size: 0.8rem;
-  }
-`;
-
-const MealCardContent = styled.div`
-  padding: 1.25rem;
-  
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-  }
-`;
-
-const MealCardTitle = styled.h4`
-  font-size: 1rem;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 0.5rem;
-  
-  @media (min-width: 768px) {
-    font-size: 1.1rem;
-  }
-`;
-
-const MealDescription = styled.p`
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 1rem;
-  line-height: 1.5;
-  
-  @media (min-width: 768px) {
-    font-size: 0.9rem;
-  }
-`;
-
-const MealStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-`;
-
-const StatBox = styled.div`
-  text-align: center;
-  padding: 0.5rem;
-  background: rgba(236, 72, 153, 0.1);
-  border-radius: 8px;
-`;
-
-const StatValue = styled.div`
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: white;
-  
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  
-  @media (min-width: 768px) {
-    font-size: 0.7rem;
-  }
-`;
-
-const MealTags = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-`;
-
-const Tag = styled.span`
-  background: rgba(139, 92, 246, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.65rem;
-  font-weight: 500;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  
-  @media (min-width: 768px) {
-    font-size: 0.7rem;
-  }
-`;
-
-// Sidebar Components
-const SummaryCard = styled.div`
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  
-  @media (min-width: 768px) {
-    border-radius: 24px;
-    padding: 2rem;
-  }
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.2);
-    border-color: rgba(236, 72, 153, 0.3);
-  }
-`;
-
-const SummaryTitle = styled.h3`
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: white;
-  margin-bottom: 1rem;
-  letter-spacing: -0.01em;
-  
-  @media (min-width: 768px) {
-    font-size: 1.4rem;
-    margin-bottom: 1.5rem;
-  }
-`;
-
-const SummaryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  
-  @media (min-width: 768px) {
-    gap: 1.2rem;
-  }
-`;
-
-const SummaryItem = styled.div`
-  text-align: center;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(236, 72, 153, 0.2);
-  transition: all 0.3s ease;
-  
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-    border-radius: 16px;
-  }
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.2);
-    border-color: rgba(236, 72, 153, 0.4);
-  }
-`;
-
-const SummaryValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.25rem;
-  
-  @media (min-width: 768px) {
-    font-size: 1.8rem;
-  }
-`;
-
-const SummaryLabel = styled.div`
-  font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.7);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-  
-  @media (min-width: 768px) {
-    font-size: 0.8rem;
-  }
-`;
-
-const ActionButton = styled.button`
+const DayNavigationButton = styled.button`
   background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
   border: none;
   color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 50px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4);
-  width: 100%;
-  
-  @media (min-width: 768px) {
-    padding: 1rem 2rem;
-    font-size: 1rem;
-    border-radius: 60px;
-    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
-  }
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.6);
-  }
-`;
-
-// Mobile Sticky Footer Navigation
-const MobileFooter = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.95);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-  z-index: 1000;
-  
-  @media (min-width: 768px) {
-    display: none;
-  }
-`;
-
-const MobileNavGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  max-width: 400px;
-  margin: 0 auto;
-`;
-
-const MobileNavItem = styled.button<{ $active?: boolean }>`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 0.5rem;
-  background: ${({ $active }) => 
-    $active ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'transparent'};
-  border: none;
-  border-radius: 12px;
-  color: ${({ $active }) => $active ? 'white' : 'rgba(255, 255, 255, 0.7)'};
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    color: white;
-    background: ${({ $active }) => 
-      $active ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255, 255, 255, 0.1)'};
-  }
-`;
-
-const MobileNavIcon = styled.div`
-  font-size: 1.2rem;
-`;
-
-const MobileNavLabel = styled.div`
-  font-size: 0.6rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-// Modal Updates for Miami Theme
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(20px);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  
-  @media (min-width: 768px) {
-    padding: 2rem;
-  }
-`;
-
-const ModalContent = styled.div`
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a0b2e 100%);
-  border-radius: 20px;
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  
-  @media (min-width: 768px) {
-    max-width: 800px;
-    border-radius: 24px;
-  }
-`;
-
-const ModalHeader = styled.div`
-  position: relative;
-  height: 250px;
-  background-size: cover;
-  background-position: center;
-  border-radius: 20px 20px 0 0;
-  display: flex;
-  align-items: flex-end;
-  padding: 1.5rem;
-  
-  @media (min-width: 768px) {
-    height: 300px;
-    border-radius: 24px 24px 0 0;
-    padding: 2rem;
-  }
-  
-  &:before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.8) 100%);
-    border-radius: 20px 20px 0 0;
-    
-    @media (min-width: 768px) {
-      border-radius: 24px 24px 0 0;
-    }
-  }
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: white;
-  text-shadow: 0 4px 8px rgba(0,0,0,0.8);
-  margin: 0;
-  position: relative;
-  z-index: 1;
-  
-  @media (min-width: 768px) {
-    font-size: 2.5rem;
-  }
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   @media (min-width: 768px) {
     width: 40px;
     height: 40px;
-    font-size: 1.2rem;
   }
   
   &:hover {
-    background: rgba(236, 72, 153, 0.8);
-    transform: scale(1.05);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
   }
 `;
 
-const ModalBody = styled.div`
-  padding: 2rem;
-  color: white;
+const DayViewTitle = styled.div`
+  text-align: center;
   
-  @media (min-width: 768px) {
-    padding: 3rem;
-  }
-`;
-
-// Recipe Modal Components
-const RecipeSection = styled.div`
-  margin-bottom: 3rem;
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  
-  @media (min-width: 768px) {
-    font-size: 1.4rem;
-  }
-`;
-
-const IngredientsList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.5rem;
-  
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-`;
-
-const IngredientItem = styled.li`
-  padding: 0.75rem 1rem;
-  background: rgba(236, 72, 153, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid #ec4899;
-  font-weight: 500;
-  color: white;
-`;
-
-const InstructionsList = styled.ol`
-  padding: 0;
-  margin: 0;
-  list-style: none;
-  counter-reset: step-counter;
-`;
-
-const InstructionItem = styled.li`
-  counter-increment: step-counter;
-  padding: 1rem 1rem 1rem 3rem;
-  margin-bottom: 1rem;
-  background: rgba(139, 92, 246, 0.1);
-  border-radius: 12px;
-  position: relative;
-  color: white;
-  
-  @media (min-width: 768px) {
-    padding: 1.5rem 1.5rem 1.5rem 4rem;
-  }
-  
-  &:before {
-    content: counter(step-counter);
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  h2 {
     color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.8rem;
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin: 0 0 0.25rem 0;
     
     @media (min-width: 768px) {
-      width: 32px;
-      height: 32px;
-      font-size: 0.9rem;
+      font-size: 1.3rem;
     }
   }
-`;
-
-const RecipeStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
   
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  }
-`;
-
-const RecipeStatCard = styled.div`
-  text-align: center;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-`;
-
-// Paywall Modal Components
-const PaywallContent = styled.div`
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a0b2e 100%);
-  border-radius: 20px;
-  max-width: 450px;
-  width: 100%;
-  padding: 2rem;
-  text-align: center;
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  
-  @media (min-width: 768px) {
-    max-width: 500px;
-    padding: 3rem;
-    border-radius: 24px;
-  }
-`;
-
-const PaywallIcon = styled.div`
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  
-  @media (min-width: 768px) {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-  }
-`;
-
-const PaywallTitle = styled.h2`
-  font-size: 1.6rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.75rem;
-  
-  @media (min-width: 768px) {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-`;
-
-const PaywallText = styled.p`
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  
-  @media (min-width: 768px) {
-    font-size: 1.1rem;
-    margin-bottom: 2rem;
-  }
-`;
-
-const PaywallButton = styled.button`
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-  border: none;
-  color: white;
-  padding: 1rem 2rem;
-  border-radius: 50px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.4);
-  margin-bottom: 1rem;
-  width: 100%;
-  
-  @media (min-width: 768px) {
-    padding: 1.2rem 2.5rem;
-    font-size: 1.1rem;
-    border-radius: 60px;
-    box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4);
-  }
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 32px rgba(236, 72, 153, 0.6);
-  }
-`;
-
-const PaywallFeatures = styled.ul`
-  text-align: left;
-  list-style: none;
-  padding: 0;
-  margin: 1.5rem 0;
-  
-  @media (min-width: 768px) {
-    margin: 2rem 0;
-  }
-`;
-
-const PaywallFeature = styled.li`
-  padding: 0.4rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
-  
-  @media (min-width: 768px) {
-    padding: 0.5rem 0;
-  }
-  
-  &:before {
-    content: '✓';
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    flex-shrink: 0;
+  p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75rem;
+    margin: 0;
     
     @media (min-width: 768px) {
-      width: 20px;
-      height: 20px;
       font-size: 0.8rem;
     }
   }
 `;
 
-const HelpTooltip = styled.div`
-  position: fixed;
-  bottom: 7rem;
-  right: 1rem;
-  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-  color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  max-width: 250px;
-  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.4);
-  z-index: 1500;
-  animation: ${slideInUp} 0.5s ease-out;
+const DayMealsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
   
-  @media (min-width: 768px) {
-    bottom: 2rem;
-    right: 2rem;
-    padding: 1rem 1.5rem;
-    border-radius: 16px;
-    font-size: 0.9rem;
-    max-width: 300px;
-    box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4);
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  &:before {
-    content: '💡';
-    margin-right: 0.5rem;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
   }
 `;
 
-const DemoCounter = styled.div`
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(20px);
-  padding: 0.75rem 1rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+const DayMealCard = styled.div`
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 1500;
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 600;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
   
   @media (min-width: 768px) {
-    top: 2rem;
-    right: 2rem;
-    padding: 1rem 1.5rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
+    padding: 1.25rem;
+    min-height: 140px;
+  }
+  
+  &:hover {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(236, 72, 153, 0.2);
   }
 `;
 
-type ViewType = 'day' | 'week' | 'month';
-
-// Mock meal data with properly matched images
-const mockMeals: Meal[] = [
-  {
-    id: '1',
-    name: 'Avocado Toast with Poached Egg',
-    image: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=400&h=300&fit=crop',
-    prepTime: 15,
-    calories: 420,
-    protein: 18,
-    carbs: 32,
-    fat: 28,
-    ingredients: ['Sourdough bread', 'Avocado', 'Eggs', 'Cherry tomatoes', 'Hemp seeds'],
-    description: 'Perfectly ripe avocado on artisan sourdough with a creamy poached egg.',
-    difficulty: 'Easy',
-    tags: ['Vegetarian', 'High Protein', 'Healthy Fats'],
-    instructions: [
-      'Bring a pot of water to a gentle simmer and add a splash of white vinegar.',
-      'Toast the sourdough bread until golden brown.',
-      'Mash the avocado with a fork and season with salt and pepper.',
-      'Crack the egg into a small bowl, then gently slide into the simmering water.',
-      'Poach for 3-4 minutes until the white is set but yolk is still runny.',
-      'Spread mashed avocado on toast, top with poached egg and cherry tomatoes.',
-      'Sprinkle with hemp seeds and serve immediately.'
-    ]
-  },
-  {
-    id: '2',
-    name: 'Greek Quinoa Buddha Bowl',
-    image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400&h=300&fit=crop',
-    prepTime: 25,
-    calories: 485,
-    protein: 22,
-    carbs: 54,
-    fat: 18,
-    ingredients: ['Quinoa', 'Cucumber', 'Feta cheese', 'Olives', 'Cherry tomatoes', 'Red onion'],
-    description: 'Mediterranean-inspired bowl packed with fresh vegetables and protein.',
-    difficulty: 'Medium',
-    tags: ['Vegetarian', 'Mediterranean', 'High Fiber'],
-    instructions: [
-      'Rinse quinoa under cold water until water runs clear.',
-      'Cook quinoa in vegetable broth for 15 minutes until fluffy.',
-      'Dice cucumber, cherry tomatoes, and red onion.',
-      'Crumble feta cheese into bite-sized pieces.',
-      'Make dressing with olive oil, lemon juice, oregano, salt, and pepper.',
-      'Arrange cooked quinoa in a bowl as the base.',
-      'Top with cucumber, tomatoes, olives, onion, and feta.',
-      'Drizzle with dressing and garnish with fresh herbs.'
-    ]
-  },
-  {
-    id: '3',
-    name: 'Grilled Salmon with Asparagus',
-    image: 'https://images.unsplash.com/photo-1485704686097-ed47f7263ca4?w=400&h=300&fit=crop',
-    prepTime: 20,
-    calories: 380,
-    protein: 35,
-    carbs: 8,
-    fat: 24,
-    ingredients: ['Atlantic salmon', 'Asparagus', 'Lemon', 'Olive oil', 'Garlic', 'Herbs'],
-    description: 'Wild-caught salmon grilled to perfection with seasonal vegetables.',
-    difficulty: 'Medium',
-    tags: ['High Protein', 'Omega-3', 'Low Carb', 'Paleo'],
-    instructions: [
-      'Preheat grill to medium-high heat.',
-      'Pat salmon fillets dry and season with salt, pepper, and herbs.',
-      'Trim woody ends from asparagus and toss with olive oil.',
-      'Mince garlic and mix with olive oil and lemon zest.',
-      'Grill salmon skin-side down for 4-5 minutes without moving.',
-      'Flip salmon and grill for 3-4 more minutes until flaky.',
-      'Grill asparagus for 3-4 minutes, turning occasionally.',
-      'Serve salmon with asparagus, drizzled with garlic oil and lemon juice.'
-    ]
-  },
-  {
-    id: '4',
-    name: 'Mixed Berry Smoothie Bowl',
-    image: 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=400&h=300&fit=crop',
-    prepTime: 10,
-    calories: 320,
-    protein: 12,
-    carbs: 58,
-    fat: 8,
-    ingredients: ['Mixed berries', 'Banana', 'Greek yogurt', 'Granola', 'Chia seeds', 'Honey'],
-    description: 'Antioxidant-rich smoothie bowl topped with fresh fruits and granola.',
-    difficulty: 'Easy',
-    tags: ['Vegetarian', 'Antioxidants', 'Post-Workout'],
-    instructions: [
-      'Freeze mixed berries and banana slices the night before.',
-      'Blend frozen berries, banana, and Greek yogurt until smooth and thick.',
-      'Add a tablespoon of honey if extra sweetness is desired.',
-      'Pour smoothie mixture into a chilled bowl.',
-      'Arrange fresh berries, granola, and chia seeds on top.',
-      'Drizzle with honey and serve immediately.',
-      'Enjoy with a spoon for the perfect texture contrast.'
-    ]
-  },
-  {
-    id: '5',
-    name: 'Chicken Teriyaki Rice Bowl',
-    image: 'https://images.unsplash.com/photo-1563379091339-03246963d61b?w=400&h=300&fit=crop',
-    prepTime: 30,
-    calories: 520,
-    protein: 38,
-    carbs: 65,
-    fat: 12,
-    ingredients: ['Chicken breast', 'Brown rice', 'Broccoli', 'Carrots', 'Teriyaki sauce', 'Sesame seeds'],
-    description: 'Lean protein with complex carbs in a flavorful Asian-inspired sauce.',
-    difficulty: 'Medium',
-    tags: ['High Protein', 'Asian', 'Balanced'],
-    instructions: [
-      'Cook brown rice according to package directions.',
-      'Cut chicken breast into bite-sized pieces.',
-      'Heat oil in a large pan over medium-high heat.',
-      'Cook chicken pieces until golden brown and cooked through.',
-      'Steam broccoli and carrots until tender-crisp.',
-      'Add teriyaki sauce to chicken and simmer for 2 minutes.',
-      'Serve chicken over rice with steamed vegetables.',
-      'Garnish with sesame seeds and green onions.'
-    ]
-  },
-  {
-    id: '6',
-    name: 'Dark Chocolate Energy Balls',
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=300&fit=crop',
-    prepTime: 15,
-    calories: 180,
-    protein: 6,
-    carbs: 18,
-    fat: 11,
-    ingredients: ['Dates', 'Almonds', 'Dark chocolate', 'Coconut', 'Vanilla'],
-    description: 'Naturally sweetened energy bites perfect for afternoon fuel.',
-    difficulty: 'Easy',
-    tags: ['Vegan', 'No-Bake', 'Energy', 'Antioxidants'],
-    instructions: [
-      'Pit dates and soak in warm water for 10 minutes to soften.',
-      'Roughly chop almonds and dark chocolate.',
-      'Drain dates and add to food processor.',
-      'Process dates until they form a smooth paste.',
-      'Add almonds, chocolate, coconut, and vanilla.',
-      'Pulse until mixture holds together when pressed.',
-      'Roll mixture into 12 small balls using your hands.',
-      'Chill in refrigerator for 30 minutes before serving.'
-    ]
-  },
-  {
-    id: '7',
-    name: 'Protein Pancakes with Berries',
-    image: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?w=400&h=300&fit=crop',
-    prepTime: 20,
-    calories: 380,
-    protein: 28,
-    carbs: 42,
-    fat: 12,
-    ingredients: ['Protein powder', 'Oats', 'Eggs', 'Blueberries', 'Greek yogurt', 'Maple syrup'],
-    description: 'Fluffy protein-packed pancakes topped with fresh berries and Greek yogurt.',
-    difficulty: 'Easy',
-    tags: ['High Protein', 'Post-Workout', 'Vegetarian'],
-    instructions: [
-      'Blend oats in a blender until they form a fine flour.',
-      'Mix oat flour, protein powder, and a pinch of salt.',
-      'Whisk eggs and add to dry ingredients.',
-      'Add enough water to make a pancake batter consistency.',
-      'Heat a non-stick pan over medium heat.',
-      'Pour batter to form small pancakes.',
-      'Cook for 2-3 minutes until bubbles form, then flip.',
-      'Serve topped with Greek yogurt, berries, and maple syrup.'
-    ]
-  },
-  {
-    id: '8',
-    name: 'Mediterranean Chicken Salad',
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-    prepTime: 15,
-    calories: 390,
-    protein: 32,
-    carbs: 18,
-    fat: 22,
-    ingredients: ['Grilled chicken', 'Mixed greens', 'Cucumber', 'Feta', 'Olives', 'Olive oil'],
-    description: 'Fresh Mediterranean salad with grilled chicken and tangy feta cheese.',
-    difficulty: 'Easy',
-    tags: ['High Protein', 'Mediterranean', 'Low Carb'],
-    instructions: [
-      'Season chicken breast with herbs and grill until cooked through.',
-      'Let chicken rest for 5 minutes, then slice thinly.',
-      'Wash and dry mixed greens thoroughly.',
-      'Dice cucumber and halve cherry tomatoes.',
-      'Make dressing with olive oil, lemon juice, and oregano.',
-      'Toss greens with half the dressing.',
-      'Top with chicken, cucumber, olives, and crumbled feta.',
-      'Drizzle with remaining dressing and serve immediately.'
-    ]
-  },
-  {
-    id: '9',
-    name: 'Sweet Potato & Black Bean Bowl',
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop',
-    prepTime: 35,
-    calories: 445,
-    protein: 18,
-    carbs: 72,
-    fat: 12,
-    ingredients: ['Roasted sweet potato', 'Black beans', 'Quinoa', 'Avocado', 'Lime', 'Cilantro'],
-    description: 'Hearty plant-based bowl with roasted sweet potatoes and protein-rich beans.',
-    difficulty: 'Medium',
-    tags: ['Vegan', 'High Fiber', 'Plant-Based'],
-    instructions: [
-      'Preheat oven to 425°F (220°C).',
-      'Cube sweet potatoes and toss with olive oil and spices.',
-      'Roast sweet potatoes for 25-30 minutes until tender.',
-      'Cook quinoa according to package directions.',
-      'Rinse and heat black beans in a pan.',
-      'Slice avocado and chop fresh cilantro.',
-      'Assemble bowls with quinoa as base.',
-      'Top with roasted sweet potato, black beans, avocado, and cilantro.',
-      'Squeeze lime juice over everything before serving.'
-    ]
-  },
-  {
-    id: '10',
-    name: 'Almond Butter Apple Slices',
-    image: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400&h=300&fit=crop',
-    prepTime: 5,
-    calories: 220,
-    protein: 8,
-    carbs: 24,
-    fat: 12,
-    ingredients: ['Honeycrisp apple', 'Almond butter', 'Cinnamon', 'Chia seeds'],
-    description: 'Crisp apple slices with creamy almond butter and a sprinkle of cinnamon.',
-    difficulty: 'Easy',
-    tags: ['Healthy Fats', 'Quick', 'Natural'],
-    instructions: [
-      'Wash the apple thoroughly under cold water.',
-      'Core the apple and slice into 8 wedges.',
-      'Arrange apple slices on a plate.',
-      'Warm almond butter slightly to make it easier to drizzle.',
-      'Drizzle or spread almond butter over apple slices.',
-      'Sprinkle with cinnamon and chia seeds.',
-      'Serve immediately for the best texture and flavor.'
-    ]
+const DayMealType = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  
+  span {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    
+    @media (min-width: 768px) {
+      font-size: 0.8rem;
+    }
   }
-];
+`;
+
+const DayMealInfo = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  
+  h4 {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.3;
+    
+    @media (min-width: 768px) {
+      font-size: 1rem;
+    }
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.75rem;
+    margin: 0 0 0.5rem 0;
+    
+    @media (min-width: 768px) {
+      font-size: 0.8rem;
+    }
+  }
+  
+  .calories {
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    
+    @media (min-width: 768px) {
+      font-size: 0.9rem;
+    }
+  }
+  
+  .macros {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.65rem;
+    margin-top: 0.25rem;
+    
+    @media (min-width: 768px) {
+      font-size: 0.7rem;
+    }
+  }
+`;
+
+const AddMealButton = styled.button`
+  background: rgba(236, 72, 153, 0.1);
+  border: 1px dashed rgba(236, 72, 153, 0.3);
+  border-radius: 8px;
+  color: rgba(236, 72, 153, 0.8);
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  
+  &:hover {
+    background: rgba(236, 72, 153, 0.2);
+    border-color: rgba(236, 72, 153, 0.5);
+    color: rgba(236, 72, 153, 1);
+  }
+`;
+
+type ViewType = 'day' | 'week';
 
 const MealPlanner: React.FC = () => {
-  const { selectedDate } = useMealPlan();
+  const { currentPlan, selectedDate, setSelectedDate, generateMealPlan, isLoading } = useMealPlan();
   const [view, setView] = useState<ViewType>('week');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [recipeViews, setRecipeViews] = useState(() => {
-    return parseInt(localStorage.getItem('recipeViews') || '0');
-  });
-  const [regeneratingMeals, setRegeneratingMeals] = useState<Set<string>>(new Set());
-  const [customMeals, setCustomMeals] = useState<{ [key: string]: Meal }>({});
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  
+  // Modal states
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [isMealDetailOpen, setIsMealDetailOpen] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snacks' | null>(null);
+  const [selectedMealDate, setSelectedMealDate] = useState<string>('');
+  const [isGroceryListOpen, setIsGroceryListOpen] = useState(false);
 
-  const DEMO_LIMIT = 3;
+  // Chat states
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const handleMealClick = (meal: Meal) => {
-    if (recipeViews >= DEMO_LIMIT) {
-      setShowPaywall(true);
-      return;
+  // Generate initial meal plan when component loads if none exists
+  useEffect(() => {
+    if (currentPlan.length === 0 && !isLoading) {
+      handleGenerateMealPlan();
     }
-    
-    setSelectedMeal(meal);
-    const newCount = recipeViews + 1;
-    setRecipeViews(newCount);
-    localStorage.setItem('recipeViews', newCount.toString());
+  }, []);
+
+  const handleGenerateMealPlan = async () => {
+    try {
+      await generateMealPlan({
+        dietaryRestrictions: [],
+        calorieGoal: 2000,
+        mealsPerDay: 4
+      });
+    } catch (error) {
+      console.error('Failed to generate meal plan:', error);
+    }
   };
 
-  const handleRegenerateMeal = async (mealId: string, mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks', date: string) => {
-    const mealKey = `${date}-${mealType}`;
-    setRegeneratingMeals(prev => new Set(prev).add(mealKey));
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Get meals of the same type but exclude the current one
-    const mealTypeMap = {
-      breakfast: [mockMeals[0], mockMeals[3], mockMeals[6]], // Avocado toast, smoothie bowl, pancakes
-      lunch: [mockMeals[1], mockMeals[7], mockMeals[8]], // Buddha bowl, chicken salad, sweet potato bowl
-      dinner: [mockMeals[2], mockMeals[4]], // Salmon, chicken teriyaki
-      snacks: [mockMeals[5], mockMeals[9]] // Energy balls, apple slices
-    };
-    
-    const availableMeals = mealTypeMap[mealType].filter(meal => meal.id !== mealId);
-    const randomMeal = availableMeals[Math.floor(Math.random() * availableMeals.length)];
-    
-    // Store the new meal in custom meals state
-    setCustomMeals(prev => ({
-      ...prev,
-      [mealKey]: randomMeal
-    }));
-    
-    setRegeneratingMeals(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(mealKey);
-      return newSet;
-    });
+  // Calculate week range with smooth navigation
+  const getWeekDays = (weekStart: Date) => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      days.push(date);
+    }
+    return days;
   };
 
-  const closeModal = () => {
-    setSelectedMeal(null);
+  const currentWeekStart = useMemo(() => {
+    const start = startOfWeek(currentWeek);
+    return start;
+  }, [currentWeek]);
+
+  const weekDays = getWeekDays(currentWeekStart);
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeek = new Date(currentWeek);
+    newWeek.setDate(currentWeek.getDate() + (direction === 'next' ? 7 : -7));
+    setCurrentWeek(newWeek);
   };
 
-  const closePaywall = () => {
-    setShowPaywall(false);
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const currentDate = new Date(selectedDate);
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + (direction === 'next' ? 1 : -1));
+    setSelectedDate(newDate.toISOString().split('T')[0]);
   };
 
-  // Generate mock meal plans for different days
-  const generateDayMeals = (date: Date): DayMeals => {
-    const dateString = format(date, 'yyyy-MM-dd');
-    const seed = date.getTime();
-    const random = (array: any[]) => array[Math.floor((seed * 9301 + 49297) % 233280 / 233280 * array.length)];
+  const formatWeekRange = () => {
+    const endDate = new Date(currentWeekStart);
+    endDate.setDate(currentWeekStart.getDate() + 6);
     
-    // Separate meals by type for better distribution
-    const breakfastMeals = [mockMeals[0], mockMeals[3], mockMeals[6]]; // Avocado toast, smoothie bowl, pancakes
-    const lunchMeals = [mockMeals[1], mockMeals[7], mockMeals[8]]; // Buddha bowl, chicken salad, sweet potato bowl
-    const dinnerMeals = [mockMeals[2], mockMeals[4]]; // Salmon, chicken teriyaki
-    const snackMeals = [mockMeals[5], mockMeals[9]]; // Energy balls, apple slices
-    
+    return `${currentWeekStart.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    })} - ${endDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    })}`;
+  };
+
+  const formatDayTitle = () => {
+    const date = new Date(selectedDate);
     return {
-      date: dateString,
-      breakfast: [customMeals[`${dateString}-breakfast`] || random(breakfastMeals)],
-      lunch: [customMeals[`${dateString}-lunch`] || random(lunchMeals)],
-      dinner: [customMeals[`${dateString}-dinner`] || random(dinnerMeals)],
-      snacks: [customMeals[`${dateString}-snacks`] || random(snackMeals)]
+      dayName: date.toLocaleDateString('en-US', { weekday: 'long' }),
+      fullDate: date.toLocaleDateString('en-US', { 
+        weekday: 'long',
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      shortDate: date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      })
     };
   };
 
-  // Calculate date ranges based on view
-  const dateRange = useMemo(() => {
-    switch (view) {
-      case 'week':
-        return {
-          start: startOfWeek(currentDate),
-          end: endOfWeek(currentDate)
-        };
-      case 'month':
-        return {
-          start: startOfMonth(currentDate),
-          end: endOfMonth(currentDate)
-        };
-      default:
-        return {
-          start: currentDate,
-          end: currentDate
-        };
+  const getDayPlan = (date: string) => {
+    return currentPlan.find(plan => plan.date === date);
+  };
+
+  const getMealsForDay = (date: Date) => {
+    const dayKey = date.toISOString().split('T')[0];
+    const dayPlan = getDayPlan(dayKey);
+    
+    if (!dayPlan) {
+      return {
+        breakfast: null,
+        lunch: null,
+        dinner: null,
+        snacks: null
+      };
     }
-  }, [view, currentDate]);
 
-  const viewDays = useMemo(() => {
-    return eachDayOfInterval(dateRange).map(date => ({
-      date: format(date, 'yyyy-MM-dd'),
-      dayObj: date,
-      meals: generateDayMeals(date)
-    }));
-  }, [dateRange]);
+    return {
+      breakfast: dayPlan.breakfast,
+      lunch: dayPlan.lunch,
+      dinner: dayPlan.dinner,
+      snacks: dayPlan.snacks && dayPlan.snacks.length > 0 ? dayPlan.snacks[0] : null
+    };
+  };
 
-  const navigation = {
-    day: {
-      prev: () => setCurrentDate(prev => subDays(prev, 1)),
-      next: () => setCurrentDate(prev => addDays(prev, 1)),
-      label: format(currentDate, 'EEEE, MMMM d, yyyy')
-    },
-    week: {
-      prev: () => setCurrentDate(prev => subWeeks(prev, 1)),
-      next: () => setCurrentDate(prev => addWeeks(prev, 1)),
-      label: `${format(dateRange.start, 'MMM d')} - ${format(dateRange.end, 'MMM d, yyyy')}`
-    },
-    month: {
-      prev: () => setCurrentDate(prev => subMonths(prev, 1)),
-      next: () => setCurrentDate(prev => addMonths(prev, 1)),
-      label: format(currentDate, 'MMMM yyyy')
+  const calculateDayCalories = (date: Date) => {
+    const meals = getMealsForDay(date);
+    let total = 0;
+    if (meals.breakfast) total += meals.breakfast.calories;
+    if (meals.lunch) total += meals.lunch.calories;
+    if (meals.dinner) total += meals.dinner.calories;
+    if (meals.snacks) total += meals.snacks.calories;
+    return total;
+  };
+
+  const handleMealClick = (meal: any, mealType?: string, date?: string) => {
+    if (meal) {
+      setSelectedMeal(meal);
+      setSelectedMealType(mealType as 'breakfast' | 'lunch' | 'dinner' | 'snacks' || 'breakfast');
+      setSelectedMealDate(date || selectedDate);
+      setIsMealDetailOpen(true);
+    } else {
+      setSelectedMeal(null);
+      setSelectedMealType(mealType as 'breakfast' | 'lunch' | 'dinner' | 'snacks' || 'breakfast');
+      setSelectedMealDate(date || selectedDate);
+      setIsMealDetailOpen(true);
     }
   };
 
-  const selectedDayMeals = useMemo(() => {
-    const day = viewDays.find(d => d.date === selectedDate);
-    return day?.meals || generateDayMeals(parseISO(selectedDate));
-  }, [selectedDate, viewDays]);
-
-  const renderWeekView = () => (
-    <WeekContainer>
-      <WeekTable>
-        {/* Header Row */}
-        <TimeSlotHeader>Meal Type</TimeSlotHeader>
-        {viewDays.map(({ date, dayObj }) => {
-          const isToday = isSameDay(dayObj, new Date());
-          return (
-            <DayHeader key={date} $isToday={isToday}>
-              <DayNumber>{format(dayObj, 'd')}</DayNumber>
-              <DayName>{format(dayObj, 'EEE')}</DayName>
-            </DayHeader>
-          );
-        })}
-
-        {/* Breakfast Row */}
-        <TimeSlotHeader>🌅 Breakfast</TimeSlotHeader>
-        {viewDays.map(({ date, meals }) => {
-          const mealKey = `${date}-breakfast`;
-          const isRegenerating = regeneratingMeals.has(mealKey);
-          const meal = meals.breakfast[0];
-          
-          return (
-            <MealSlot key={mealKey}>
-              {meal ? (
-                <MealItem onClick={() => handleMealClick(meal)}>
-                  <MealHeader>
-                    <MealName>{meal.name}</MealName>
-                    <MealActions>
-                      <ActionIcon 
-                        $variant="refresh" 
-                        disabled={isRegenerating}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRegenerateMeal(meal.id, 'breakfast', date);
-                        }}
-                      >
-                        {isRegenerating ? <LoadingSpinner /> : '↻'}
-                      </ActionIcon>
-                      <ActionIcon $variant="info" onClick={(e) => {
-                        e.stopPropagation();
-                        handleMealClick(meal);
-                      }}>
-                        ℹ
-                      </ActionIcon>
-                    </MealActions>
-                  </MealHeader>
-                  <MealWeekDescription>{meal.description}</MealWeekDescription>
-                  <MealNutrition>
-                    <NutritionBadge $color="#f59e0b">{meal.calories} cal</NutritionBadge>
-                    <NutritionBadge $color="#10b981">{meal.protein}g protein</NutritionBadge>
-                  </MealNutrition>
-                </MealItem>
-              ) : (
-                <EmptySlot>No meal planned</EmptySlot>
-              )}
-            </MealSlot>
-          );
-        })}
-
-        {/* Lunch Row */}
-        <TimeSlotHeader>🥗 Lunch</TimeSlotHeader>
-        {viewDays.map(({ date, meals }) => {
-          const mealKey = `${date}-lunch`;
-          const isRegenerating = regeneratingMeals.has(mealKey);
-          const meal = meals.lunch[0];
-          
-          return (
-            <MealSlot key={mealKey}>
-              {meal ? (
-                <MealItem onClick={() => handleMealClick(meal)}>
-                  <MealHeader>
-                    <MealName>{meal.name}</MealName>
-                    <MealActions>
-                      <ActionIcon 
-                        $variant="refresh" 
-                        disabled={isRegenerating}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRegenerateMeal(meal.id, 'lunch', date);
-                        }}
-                      >
-                        {isRegenerating ? <LoadingSpinner /> : '↻'}
-                      </ActionIcon>
-                      <ActionIcon $variant="info" onClick={(e) => {
-                        e.stopPropagation();
-                        handleMealClick(meal);
-                      }}>
-                        ℹ
-                      </ActionIcon>
-                    </MealActions>
-                  </MealHeader>
-                  <MealWeekDescription>{meal.description}</MealWeekDescription>
-                  <MealNutrition>
-                    <NutritionBadge $color="#f59e0b">{meal.calories} cal</NutritionBadge>
-                    <NutritionBadge $color="#10b981">{meal.protein}g protein</NutritionBadge>
-                  </MealNutrition>
-                </MealItem>
-              ) : (
-                <EmptySlot>No meal planned</EmptySlot>
-              )}
-            </MealSlot>
-          );
-        })}
-
-        {/* Dinner Row */}
-        <TimeSlotHeader>🍽️ Dinner</TimeSlotHeader>
-        {viewDays.map(({ date, meals }) => {
-          const mealKey = `${date}-dinner`;
-          const isRegenerating = regeneratingMeals.has(mealKey);
-          const meal = meals.dinner[0];
-          
-          return (
-            <MealSlot key={mealKey}>
-              {meal ? (
-                <MealItem onClick={() => handleMealClick(meal)}>
-                  <MealHeader>
-                    <MealName>{meal.name}</MealName>
-                    <MealActions>
-                      <ActionIcon 
-                        $variant="refresh" 
-                        disabled={isRegenerating}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRegenerateMeal(meal.id, 'dinner', date);
-                        }}
-                      >
-                        {isRegenerating ? <LoadingSpinner /> : '↻'}
-                      </ActionIcon>
-                      <ActionIcon $variant="info" onClick={(e) => {
-                        e.stopPropagation();
-                        handleMealClick(meal);
-                      }}>
-                        ℹ
-                      </ActionIcon>
-                    </MealActions>
-                  </MealHeader>
-                  <MealWeekDescription>{meal.description}</MealWeekDescription>
-                  <MealNutrition>
-                    <NutritionBadge $color="#f59e0b">{meal.calories} cal</NutritionBadge>
-                    <NutritionBadge $color="#10b981">{meal.protein}g protein</NutritionBadge>
-                  </MealNutrition>
-                </MealItem>
-              ) : (
-                <EmptySlot>No meal planned</EmptySlot>
-              )}
-            </MealSlot>
-          );
-        })}
-
-        {/* Snacks Row */}
-        <TimeSlotHeader>🍎 Snacks</TimeSlotHeader>
-        {viewDays.map(({ date, meals }) => {
-          const mealKey = `${date}-snacks`;
-          const isRegenerating = regeneratingMeals.has(mealKey);
-          const meal = meals.snacks[0];
-          
-          return (
-            <MealSlot key={mealKey}>
-              {meal ? (
-                <MealItem onClick={() => handleMealClick(meal)}>
-                  <MealHeader>
-                    <MealName>{meal.name}</MealName>
-                    <MealActions>
-                      <ActionIcon 
-                        $variant="refresh" 
-                        disabled={isRegenerating}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRegenerateMeal(meal.id, 'snacks', date);
-                        }}
-                      >
-                        {isRegenerating ? <LoadingSpinner /> : '↻'}
-                      </ActionIcon>
-                      <ActionIcon $variant="info" onClick={(e) => {
-                        e.stopPropagation();
-                        handleMealClick(meal);
-                      }}>
-                        ℹ
-                      </ActionIcon>
-                    </MealActions>
-                  </MealHeader>
-                  <MealWeekDescription>{meal.description}</MealWeekDescription>
-                  <MealNutrition>
-                    <NutritionBadge $color="#f59e0b">{meal.calories} cal</NutritionBadge>
-                    <NutritionBadge $color="#10b981">{meal.protein}g protein</NutritionBadge>
-                  </MealNutrition>
-                </MealItem>
-              ) : (
-                <EmptySlot>No meal planned</EmptySlot>
-              )}
-            </MealSlot>
-          );
-        })}
-      </WeekTable>
-    </WeekContainer>
-  );
-
-  const renderDayView = () => {
-    return (
-      <DayViewContainer>
-        <MealSection>
-          <MealSectionHeader>
-            <MealSectionTitle>🌅 Breakfast</MealSectionTitle>
-            <MealTime>7:00 - 9:00 AM</MealTime>
-          </MealSectionHeader>
-          <MealGrid>
-            {selectedDayMeals.breakfast.map(meal => (
-              <MealCard key={meal.id} onClick={() => handleMealClick(meal)}>
-                <MealImage $image={meal.image}>
-                  <MealBadge $difficulty={meal.difficulty}>{meal.difficulty}</MealBadge>
-                </MealImage>
-                <MealCardContent>
-                  <MealCardTitle>{meal.name}</MealCardTitle>
-                  <MealDescription>{meal.description}</MealDescription>
-                  <MealStats>
-                    <StatBox>
-                      <StatValue>{meal.calories}</StatValue>
-                      <StatLabel>Cal</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.protein}g</StatValue>
-                      <StatLabel>Protein</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.carbs}g</StatValue>
-                      <StatLabel>Carbs</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.fat}g</StatValue>
-                      <StatLabel>Fat</StatLabel>
-                    </StatBox>
-                  </MealStats>
-                  <MealTags>
-                    {meal.tags.map(tag => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
-                  </MealTags>
-                </MealCardContent>
-              </MealCard>
-            ))}
-          </MealGrid>
-        </MealSection>
-
-        <MealSection>
-          <MealSectionHeader>
-            <MealSectionTitle>🥗 Lunch</MealSectionTitle>
-            <MealTime>12:00 - 2:00 PM</MealTime>
-          </MealSectionHeader>
-          <MealGrid>
-            {selectedDayMeals.lunch.map(meal => (
-              <MealCard key={meal.id} onClick={() => handleMealClick(meal)}>
-                <MealImage $image={meal.image}>
-                  <MealBadge $difficulty={meal.difficulty}>{meal.difficulty}</MealBadge>
-                </MealImage>
-                <MealCardContent>
-                  <MealCardTitle>{meal.name}</MealCardTitle>
-                  <MealDescription>{meal.description}</MealDescription>
-                  <MealStats>
-                    <StatBox>
-                      <StatValue>{meal.calories}</StatValue>
-                      <StatLabel>Cal</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.protein}g</StatValue>
-                      <StatLabel>Protein</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.carbs}g</StatValue>
-                      <StatLabel>Carbs</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.fat}g</StatValue>
-                      <StatLabel>Fat</StatLabel>
-                    </StatBox>
-                  </MealStats>
-                  <MealTags>
-                    {meal.tags.map(tag => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
-                  </MealTags>
-                </MealCardContent>
-              </MealCard>
-            ))}
-          </MealGrid>
-        </MealSection>
-
-        <MealSection>
-          <MealSectionHeader>
-            <MealSectionTitle>🍽️ Dinner</MealSectionTitle>
-            <MealTime>6:00 - 8:00 PM</MealTime>
-          </MealSectionHeader>
-          <MealGrid>
-            {selectedDayMeals.dinner.map(meal => (
-              <MealCard key={meal.id} onClick={() => handleMealClick(meal)}>
-                <MealImage $image={meal.image}>
-                  <MealBadge $difficulty={meal.difficulty}>{meal.difficulty}</MealBadge>
-                </MealImage>
-                <MealCardContent>
-                  <MealCardTitle>{meal.name}</MealCardTitle>
-                  <MealDescription>{meal.description}</MealDescription>
-                  <MealStats>
-                    <StatBox>
-                      <StatValue>{meal.calories}</StatValue>
-                      <StatLabel>Cal</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.protein}g</StatValue>
-                      <StatLabel>Protein</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.carbs}g</StatValue>
-                      <StatLabel>Carbs</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.fat}g</StatValue>
-                      <StatLabel>Fat</StatLabel>
-                    </StatBox>
-                  </MealStats>
-                  <MealTags>
-                    {meal.tags.map(tag => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
-                  </MealTags>
-                </MealCardContent>
-              </MealCard>
-            ))}
-          </MealGrid>
-        </MealSection>
-
-        <MealSection>
-          <MealSectionHeader>
-            <MealSectionTitle>🍎 Snacks</MealSectionTitle>
-            <MealTime>Throughout the day</MealTime>
-          </MealSectionHeader>
-          <MealGrid>
-            {selectedDayMeals.snacks.map(meal => (
-              <MealCard key={meal.id} onClick={() => handleMealClick(meal)}>
-                <MealImage $image={meal.image}>
-                  <MealBadge $difficulty={meal.difficulty}>{meal.difficulty}</MealBadge>
-                </MealImage>
-                <MealCardContent>
-                  <MealCardTitle>{meal.name}</MealCardTitle>
-                  <MealDescription>{meal.description}</MealDescription>
-                  <MealStats>
-                    <StatBox>
-                      <StatValue>{meal.calories}</StatValue>
-                      <StatLabel>Cal</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.protein}g</StatValue>
-                      <StatLabel>Protein</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.carbs}g</StatValue>
-                      <StatLabel>Carbs</StatLabel>
-                    </StatBox>
-                    <StatBox>
-                      <StatValue>{meal.fat}g</StatValue>
-                      <StatLabel>Fat</StatLabel>
-                    </StatBox>
-                  </MealStats>
-                  <MealTags>
-                    {meal.tags.map(tag => (
-                      <Tag key={tag}>{tag}</Tag>
-                    ))}
-                  </MealTags>
-                </MealCardContent>
-              </MealCard>
-            ))}
-          </MealGrid>
-        </MealSection>
-      </DayViewContainer>
-    );
+  const closeMealDetail = () => {
+    setIsMealDetailOpen(false);
+    setSelectedMeal(null);
+    setSelectedMealType(null);
+    setSelectedMealDate('');
   };
 
-  const renderSummary = () => {
-    const allMeals = [...selectedDayMeals.breakfast, ...selectedDayMeals.lunch, ...selectedDayMeals.dinner, ...selectedDayMeals.snacks];
-    const totals = allMeals.reduce((acc, meal) => ({
-      calories: acc.calories + meal.calories,
-      protein: acc.protein + meal.protein,
-      carbs: acc.carbs + meal.carbs,
-      fat: acc.fat + meal.fat
-    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  const handleOpenChat = () => {
+    setIsChatOpen(true);
+  };
 
-    return (
-      <SummaryCard>
-        <SummaryTitle>Daily Summary</SummaryTitle>
-        <SummaryGrid>
-          <SummaryItem>
-            <SummaryValue>{totals.calories}</SummaryValue>
-            <SummaryLabel>Calories</SummaryLabel>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryValue>{totals.protein}g</SummaryValue>
-            <SummaryLabel>Protein</SummaryLabel>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryValue>{totals.carbs}g</SummaryValue>
-            <SummaryLabel>Carbs</SummaryLabel>
-          </SummaryItem>
-          <SummaryItem>
-            <SummaryValue>{totals.fat}g</SummaryValue>
-            <SummaryLabel>Fat</SummaryLabel>
-          </SummaryItem>
-        </SummaryGrid>
-      </SummaryCard>
-    );
+  const handleCloseChat = () => {
+    setIsChatOpen(false);
+  };
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isSelected = (date: Date) => {
+    return selectedDate === date.toISOString().split('T')[0];
   };
 
   return (
     <PageContainer>
       <Header>
-        <Title>Professional Meal Planner</Title>
-        <Subtitle>
-          Discover perfectly balanced meals with detailed nutrition info, prep times, and beautiful recipes. 
-          Click any day to explore complete meal plans.
-        </Subtitle>
+        <Title>Meal Planner</Title>
+        <Subtitle>Plan your weekly nutrition with smart meal suggestions</Subtitle>
       </Header>
 
-      <ViewControls>
-        <ViewButton $active={view === 'day'} onClick={() => setView('day')}>
-          Day View
-        </ViewButton>
-        <ViewButton $active={view === 'week'} onClick={() => setView('week')}>
-          Week View
-        </ViewButton>
-      </ViewControls>
-
-      <NavigationBar>
-        <NavButton onClick={navigation[view].prev}>
-          ←
-        </NavButton>
-        <DateDisplay>{navigation[view].label}</DateDisplay>
-        <NavButton onClick={navigation[view].next}>
-          →
-        </NavButton>
-      </NavigationBar>
-
-      <ContentArea>
-        <MainContent>
-          {view === 'week' && renderWeekView()}
-          {view === 'day' && renderDayView()}
-        </MainContent>
+      <ControlBar>
+        <ViewToggle>
+          <ViewButton $active={view === 'week'} onClick={() => setView('week')}>
+            Week
+          </ViewButton>
+          <ViewButton $active={view === 'day'} onClick={() => setView('day')}>
+            Day
+          </ViewButton>
+        </ViewToggle>
         
-        <SidebarContent>
-          {renderSummary()}
-          
-          <SummaryCard>
-            <SummaryTitle>Quick Actions</SummaryTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <ActionButton onClick={() => setView('week')}>
-                📅 View Week Overview
-              </ActionButton>
-              <ActionButton onClick={() => setView('day')}>
-                🍽️ Today's Details
-              </ActionButton>
-              <ActionButton onClick={() => {}}>
-                📝 Customize Plan
-              </ActionButton>
-              <ActionButton onClick={() => {}}>
-                🛒 Shopping List
-              </ActionButton>
-            </div>
-          </SummaryCard>
-        </SidebarContent>
-      </ContentArea>
-
-      {/* Mobile Footer Navigation */}
-      <MobileFooter>
-        <MobileNavGrid>
-          <MobileNavItem 
-            $active={view === 'day'} 
-            onClick={() => setView('day')}
-          >
-            <MobileNavIcon>🍽️</MobileNavIcon>
-            <MobileNavLabel>Today</MobileNavLabel>
-          </MobileNavItem>
-          <MobileNavItem 
-            $active={view === 'week'} 
-            onClick={() => setView('week')}
-          >
-            <MobileNavIcon>📅</MobileNavIcon>
-            <MobileNavLabel>Week</MobileNavLabel>
-          </MobileNavItem>
-          <MobileNavItem onClick={() => {}}>
-            <MobileNavIcon>📊</MobileNavIcon>
-            <MobileNavLabel>Stats</MobileNavLabel>
-          </MobileNavItem>
-          <MobileNavItem onClick={() => {}}>
-            <MobileNavIcon>⚙️</MobileNavIcon>
-            <MobileNavLabel>Settings</MobileNavLabel>
-          </MobileNavItem>
-        </MobileNavGrid>
-      </MobileFooter>
-
-      {selectedMeal && (
-        <ModalOverlay onClick={closeModal}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalHeader style={{ backgroundImage: `url(${selectedMeal.image})` }}>
-              <ModalTitle>{selectedMeal.name}</ModalTitle>
-              <CloseButton onClick={closeModal}>✗</CloseButton>
-            </ModalHeader>
-            <ModalBody>
-              <RecipeSection>
-                <SectionTitle>🥘 Ingredients</SectionTitle>
-                <IngredientsList>
-                  {selectedMeal.ingredients.map((ingredient, index) => (
-                    <IngredientItem key={index}>{ingredient}</IngredientItem>
-                  ))}
-                </IngredientsList>
-              </RecipeSection>
-
-              <RecipeSection>
-                <SectionTitle>📝 Instructions</SectionTitle>
-                <InstructionsList>
-                  {selectedMeal.instructions.map((instruction, index) => (
-                    <InstructionItem key={index}>{instruction}</InstructionItem>
-                  ))}
-                </InstructionsList>
-              </RecipeSection>
-
-              <RecipeStats>
-                <RecipeStatCard>
-                  <StatValue>{selectedMeal.calories} cal</StatValue>
-                  <StatLabel>Calories</StatLabel>
-                </RecipeStatCard>
-                <RecipeStatCard>
-                  <StatValue>{selectedMeal.protein}g</StatValue>
-                  <StatLabel>Protein</StatLabel>
-                </RecipeStatCard>
-                <RecipeStatCard>
-                  <StatValue>{selectedMeal.carbs}g</StatValue>
-                  <StatLabel>Carbs</StatLabel>
-                </RecipeStatCard>
-                <RecipeStatCard>
-                  <StatValue>{selectedMeal.fat}g</StatValue>
-                  <StatLabel>Fat</StatLabel>
-                </RecipeStatCard>
-              </RecipeStats>
-            </ModalBody>
-          </ModalContent>
-        </ModalOverlay>
-      )}
-
-      {showPaywall && (
-        <ModalOverlay onClick={closePaywall}>
-          <PaywallContent onClick={(e) => e.stopPropagation()}>
-            <CloseButton onClick={closePaywall}>✗</CloseButton>
-            <PaywallIcon>🚀</PaywallIcon>
-            <PaywallTitle>Unlock Premium Recipes</PaywallTitle>
-            <PaywallText>
-              You've viewed your 3 free recipes! Upgrade to get unlimited access to our professional nutrition platform.
-            </PaywallText>
-            
-            <PaywallFeatures>
-              <PaywallFeature>Unlimited recipe access with detailed instructions</PaywallFeature>
-              <PaywallFeature>Custom meal plans based on your goals</PaywallFeature>
-              <PaywallFeature>Advanced nutrition tracking & insights</PaywallFeature>
-              <PaywallFeature>Grocery lists and meal prep guides</PaywallFeature>
-              <PaywallFeature>1-on-1 nutritionist consultations</PaywallFeature>
-              <PaywallFeature>Mobile app with offline access</PaywallFeature>
-            </PaywallFeatures>
-            
-            <PaywallButton onClick={closePaywall}>
-              Start Free Trial - $0 for 14 days
-            </PaywallButton>
-            
-            <div style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.6)', marginTop: '1rem' }}>
-              Then just $29/month. Cancel anytime.
-            </div>
-          </PaywallContent>
-        </ModalOverlay>
-      )}
+        <ActionButtons>
+          <ActionButton onClick={() => setIsGroceryListOpen(true)}>
+            <ShoppingCart size={14} />
+            Grocery
+          </ActionButton>
+          <ActionButton $variant="primary" onClick={handleOpenChat}>
+            <Bot size={14} />
+            Ask JME
+          </ActionButton>
+        </ActionButtons>
+      </ControlBar>
 
       {view === 'week' && (
-        <HelpTooltip>
-          💡 Hover over any meal to see regeneration options! Click the ↻ button to get a different meal of the same type.
-        </HelpTooltip>
+        <>
+          <WeekCarousel>
+            <WeekHeader>
+              <WeekNavButton onClick={() => navigateWeek('prev')}>
+                <ChevronLeft size={18} />
+              </WeekNavButton>
+              <WeekTitle>{formatWeekRange()}</WeekTitle>
+              <WeekNavButton onClick={() => navigateWeek('next')}>
+                <ChevronRight size={18} />
+              </WeekNavButton>
+            </WeekHeader>
+
+            <WeekScrollContainer>
+              {weekDays.map((date) => {
+                const dayKey = date.toISOString().split('T')[0];
+                const meals = getMealsForDay(date);
+                const totalCalories = calculateDayCalories(date);
+
+                return (
+                  <DayCard
+                    key={dayKey}
+                    $isSelected={isSelected(date)}
+                    $isToday={isToday(date)}
+                    onClick={() => setSelectedDate(dayKey)}
+                  >
+                    <DayHeader>
+                      <DayInfo>
+                        <DayName>{date.toLocaleDateString('en-US', { weekday: 'long' })}</DayName>
+                        <DayDate>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</DayDate>
+                      </DayInfo>
+                      <DayTotalCalories>
+                        <span>{totalCalories}</span>
+                        <small>calories</small>
+                      </DayTotalCalories>
+                    </DayHeader>
+
+                    <MealSlots>
+                      <MealSlot onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(meals.breakfast, 'breakfast', dayKey);
+                      }}>
+                        <MealType>
+                          <Coffee size={12} />
+                          <span>Breakfast</span>
+                        </MealType>
+                        <MealContent>
+                          {meals.breakfast ? (
+                            <>
+                              <h4>{meals.breakfast.name}</h4>
+                              <p>{meals.breakfast.calories} cal</p>
+                            </>
+                          ) : (
+                            <EmptySlot>Add meal</EmptySlot>
+                          )}
+                        </MealContent>
+                      </MealSlot>
+
+                      <MealSlot onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(meals.lunch, 'lunch', dayKey);
+                      }}>
+                        <MealType>
+                          <Salad size={12} />
+                          <span>Lunch</span>
+                        </MealType>
+                        <MealContent>
+                          {meals.lunch ? (
+                            <>
+                              <h4>{meals.lunch.name}</h4>
+                              <p>{meals.lunch.calories} cal</p>
+                            </>
+                          ) : (
+                            <EmptySlot>Add meal</EmptySlot>
+                          )}
+                        </MealContent>
+                      </MealSlot>
+
+                      <MealSlot onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(meals.dinner, 'dinner', dayKey);
+                      }}>
+                        <MealType>
+                          <UtensilsCrossed size={12} />
+                          <span>Dinner</span>
+                        </MealType>
+                        <MealContent>
+                          {meals.dinner ? (
+                            <>
+                              <h4>{meals.dinner.name}</h4>
+                              <p>{meals.dinner.calories} cal</p>
+                            </>
+                          ) : (
+                            <EmptySlot>Add meal</EmptySlot>
+                          )}
+                        </MealContent>
+                      </MealSlot>
+
+                      <MealSlot onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(meals.snacks, 'snacks', dayKey);
+                      }}>
+                        <MealType>
+                          <Apple size={12} />
+                          <span>Snacks</span>
+                        </MealType>
+                        <MealContent>
+                          {meals.snacks ? (
+                            <>
+                              <h4>{meals.snacks.name}</h4>
+                              <p>{meals.snacks.calories} cal</p>
+                            </>
+                          ) : (
+                            <EmptySlot>Add snack</EmptySlot>
+                          )}
+                        </MealContent>
+                      </MealSlot>
+                    </MealSlots>
+                  </DayCard>
+                );
+              })}
+            </WeekScrollContainer>
+          </WeekCarousel>
+
+          <RegenerateSection>
+            <RegenerateButton onClick={handleGenerateMealPlan} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <LoadingSpinner />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} />
+                  Regenerate Week
+                </>
+              )}
+            </RegenerateButton>
+          </RegenerateSection>
+        </>
       )}
 
-      <DemoCounter>
-        {recipeViews} / {DEMO_LIMIT} free recipes viewed
-      </DemoCounter>
+      {view === 'day' && (
+        <>
+          <DayViewContainer>
+            <DayViewHeader>
+              <DayNavigationButton onClick={() => navigateDay('prev')}>
+                <ChevronLeft size={18} />
+              </DayNavigationButton>
+              <DayViewTitle>
+                <h2>{formatDayTitle().dayName}</h2>
+                <p>{formatDayTitle().shortDate}</p>
+              </DayViewTitle>
+              <DayNavigationButton onClick={() => navigateDay('next')}>
+                <ChevronRight size={18} />
+              </DayNavigationButton>
+            </DayViewHeader>
+
+            <DayMealsGrid>
+              {/* Breakfast */}
+              <DayMealCard onClick={() => {
+                const dayPlan = getDayPlan(selectedDate);
+                handleMealClick(dayPlan?.breakfast || null, 'breakfast', selectedDate);
+              }}>
+                <DayMealType>
+                  <Coffee size={16} />
+                  <span>Breakfast</span>
+                </DayMealType>
+                <DayMealInfo>
+                  {(() => {
+                    const dayPlan = getDayPlan(selectedDate);
+                    const meal = dayPlan?.breakfast;
+                    return meal ? (
+                      <>
+                        <h4>{meal.name}</h4>
+                        <p>{meal.ingredients?.slice(0, 2).join(', ')}{meal.ingredients?.length > 2 ? '...' : ''}</p>
+                        <div className="calories">{meal.calories} calories</div>
+                        <div className="macros">
+                          P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g
+                        </div>
+                      </>
+                    ) : (
+                      <AddMealButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(null, 'breakfast', selectedDate);
+                      }}>
+                        <Plus size={16} />
+                        Add Breakfast
+                      </AddMealButton>
+                    );
+                  })()}
+                </DayMealInfo>
+              </DayMealCard>
+
+              {/* Lunch */}
+              <DayMealCard onClick={() => {
+                const dayPlan = getDayPlan(selectedDate);
+                handleMealClick(dayPlan?.lunch || null, 'lunch', selectedDate);
+              }}>
+                <DayMealType>
+                  <Salad size={16} />
+                  <span>Lunch</span>
+                </DayMealType>
+                <DayMealInfo>
+                  {(() => {
+                    const dayPlan = getDayPlan(selectedDate);
+                    const meal = dayPlan?.lunch;
+                    return meal ? (
+                      <>
+                        <h4>{meal.name}</h4>
+                        <p>{meal.ingredients?.slice(0, 2).join(', ')}{meal.ingredients?.length > 2 ? '...' : ''}</p>
+                        <div className="calories">{meal.calories} calories</div>
+                        <div className="macros">
+                          P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g
+                        </div>
+                      </>
+                    ) : (
+                      <AddMealButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(null, 'lunch', selectedDate);
+                      }}>
+                        <Plus size={16} />
+                        Add Lunch
+                      </AddMealButton>
+                    );
+                  })()}
+                </DayMealInfo>
+              </DayMealCard>
+
+              {/* Dinner */}
+              <DayMealCard onClick={() => {
+                const dayPlan = getDayPlan(selectedDate);
+                handleMealClick(dayPlan?.dinner || null, 'dinner', selectedDate);
+              }}>
+                <DayMealType>
+                  <UtensilsCrossed size={16} />
+                  <span>Dinner</span>
+                </DayMealType>
+                <DayMealInfo>
+                  {(() => {
+                    const dayPlan = getDayPlan(selectedDate);
+                    const meal = dayPlan?.dinner;
+                    return meal ? (
+                      <>
+                        <h4>{meal.name}</h4>
+                        <p>{meal.ingredients?.slice(0, 2).join(', ')}{meal.ingredients?.length > 2 ? '...' : ''}</p>
+                        <div className="calories">{meal.calories} calories</div>
+                        <div className="macros">
+                          P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g
+                        </div>
+                      </>
+                    ) : (
+                      <AddMealButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(null, 'dinner', selectedDate);
+                      }}>
+                        <Plus size={16} />
+                        Add Dinner
+                      </AddMealButton>
+                    );
+                  })()}
+                </DayMealInfo>
+              </DayMealCard>
+
+              {/* Snacks */}
+              <DayMealCard onClick={() => {
+                const dayPlan = getDayPlan(selectedDate);
+                const meal = dayPlan?.snacks && dayPlan.snacks.length > 0 ? dayPlan.snacks[0] : null;
+                handleMealClick(meal, 'snacks', selectedDate);
+              }}>
+                <DayMealType>
+                  <Apple size={16} />
+                  <span>Snacks</span>
+                </DayMealType>
+                <DayMealInfo>
+                  {(() => {
+                    const dayPlan = getDayPlan(selectedDate);
+                    const meal = dayPlan?.snacks && dayPlan.snacks.length > 0 ? dayPlan.snacks[0] : null;
+                    return meal ? (
+                      <>
+                        <h4>{meal.name}</h4>
+                        <p>{meal.ingredients?.slice(0, 2).join(', ')}{meal.ingredients?.length > 2 ? '...' : ''}</p>
+                        <div className="calories">{meal.calories} calories</div>
+                        <div className="macros">
+                          P: {meal.protein}g • C: {meal.carbs}g • F: {meal.fat}g
+                        </div>
+                      </>
+                    ) : (
+                      <AddMealButton onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealClick(null, 'snacks', selectedDate);
+                      }}>
+                        <Plus size={16} />
+                        Add Snacks
+                      </AddMealButton>
+                    );
+                  })()}
+                </DayMealInfo>
+              </DayMealCard>
+            </DayMealsGrid>
+          </DayViewContainer>
+
+          <RegenerateSection>
+            <RegenerateButton onClick={handleGenerateMealPlan} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <LoadingSpinner />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} />
+                  Regenerate Day
+                </>
+              )}
+            </RegenerateButton>
+          </RegenerateSection>
+        </>
+      )}
+
+      {/* Floating Chat Button */}
+      <FloatingChatButton $isOpen={isChatOpen} onClick={handleOpenChat}>
+        <MessageCircle size={24} />
+      </FloatingChatButton>
+
+      {/* Modals */}
+      {isMealDetailOpen && selectedMealType && selectedMealDate && (
+        <UnifiedMealModal 
+          meal={selectedMeal}
+          mealType={selectedMealType}
+          date={selectedMealDate}
+          isOpen={isMealDetailOpen}
+          onClose={closeMealDetail}
+          onOpenChat={handleOpenChat}
+        />
+      )}
+      
+      <GroceryList 
+        isOpen={isGroceryListOpen}
+        onClose={() => setIsGroceryListOpen(false)}
+      />
+
+      {/* Chat Modal */}
+      <ChatMobile 
+        isOpen={isChatOpen}
+        onClose={handleCloseChat}
+      />
     </PageContainer>
   );
 };

@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@deepgram/sdk": "^4.2.0",
     "@headlessui/react": "^2.1.2",
+    "@heroicons/react": "^2.2.0",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@types/react-calendar": "^3.9.0",
@@ -20,6 +22,7 @@
     "@types/three": "^0.173.0",
     "@web-std/file": "^3.0.3",
     "date-fns": "^4.1.0",
+    "exif-js": "^2.3.0",
     "framer-motion": "^12.4.4",
     "jspdf": "^2.5.1",
     "lucide-react": "^0.427.0",
@@ -39,6 +42,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
+    "@types/exif-js": "^2.3.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

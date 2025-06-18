@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useMealPlan } from '../services/mealPlanContext';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Flame, 
+  Dumbbell, 
+  UtensilsCrossed, 
+  Apple, 
+  Target, 
+  Calendar, 
+  BarChart3,
+  TrendingUp
+} from 'lucide-react';
 
 // Animation keyframes
 const slideInUp = keyframes`
@@ -26,7 +36,7 @@ const pulse = keyframes`
 
 const DashboardContainer = styled.div`
   padding: 1rem;
-  padding-bottom: 6rem; /* Space for mobile footer */
+  padding-bottom: 10rem; /* Increased for better clearance above sticky footer */
   min-height: 100vh;
   position: relative;
   
@@ -61,6 +71,42 @@ const DashboardHeader = styled.div`
   @media (min-width: 768px) {
     text-align: left;
     margin-bottom: 3rem;
+  }
+`;
+
+const BrandHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  
+  @media (min-width: 768px) {
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
+  }
+`;
+
+const BrandLogo = styled.img`
+  height: 40px;
+  width: auto;
+  filter: drop-shadow(0 2px 8px rgba(236, 72, 153, 0.3));
+  
+  @media (min-width: 768px) {
+    height: 50px;
+  }
+`;
+
+const BrandName = styled.div`
+  font-size: 1.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+  
+  @media (min-width: 768px) {
+    font-size: 2.2rem;
   }
 `;
 
@@ -147,12 +193,21 @@ const StatCard = styled.div`
 `;
 
 const StatIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
   
   @media (min-width: 768px) {
-    font-size: 2rem;
-    margin-bottom: 1rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1.8rem;
   }
 `;
 
@@ -398,10 +453,11 @@ const EmptyState = styled.div`
 const EmptyIcon = styled.div`
   font-size: 3rem;
   margin-bottom: 1rem;
-  
-  @media (min-width: 768px) {
-    font-size: 4rem;
-  }
+  opacity: 0.5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.5);
 `;
 
 const EmptyText = styled.p`
@@ -431,38 +487,36 @@ const Dashboard: React.FC = () => {
   return (
     <DashboardContainer>
       <DashboardHeader>
+        <BrandHeader>
+          <BrandLogo src="/JMEFIT_black_purple.png" alt="JMEFIT" />
+          <BrandName>JMEFIT</BrandName>
+        </BrandHeader>
         <Title>Welcome Back!</Title>
         <Subtitle>
-          Your personalized nutrition dashboard. Track your progress and stay on top of your health goals.
+          Your personalized nutrition dashboard with JMEFIT. Track your progress and stay on top of your health goals.
         </Subtitle>
       </DashboardHeader>
 
       <StatsGrid>
         <StatCard>
-          <StatIcon>🔥</StatIcon>
-          <StatValue>{totalCalories || '2,100'}</StatValue>
-          <StatLabel>Daily Calories</StatLabel>
+          <StatIcon>
+            <Flame size={24} />
+          </StatIcon>
+          <StatValue>1,842</StatValue>
+          <StatLabel>Calories Today</StatLabel>
         </StatCard>
         <StatCard>
-          <StatIcon>💪</StatIcon>
-          <StatValue>120g</StatValue>
-          <StatLabel>Protein</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatIcon>🌾</StatIcon>
-          <StatValue>250g</StatValue>
-          <StatLabel>Carbs</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatIcon>🥑</StatIcon>
-          <StatValue>70g</StatValue>
-          <StatLabel>Healthy Fats</StatLabel>
+          <StatIcon>
+            <Dumbbell size={24} />
+          </StatIcon>
+          <StatValue>45min</StatValue>
+          <StatLabel>Workout</StatLabel>
         </StatCard>
       </StatsGrid>
 
       <MealPlanSection>
         <SectionTitle>
-          <span>🍽️</span>
+          <UtensilsCrossed size={24} style={{ marginRight: '0.5rem' }} />
           Today's Meal Plan
         </SectionTitle>
         <MealPlanCard>
@@ -479,28 +533,40 @@ const Dashboard: React.FC = () => {
             <MealGrid>
               {todayPlan.breakfast && (
                 <MealCard onClick={() => navigate('/meal-planner')}>
-                  <MealType>🌅 Breakfast</MealType>
+                  <MealType>
+                    <UtensilsCrossed size={16} style={{ marginRight: '0.5rem' }} />
+                    Breakfast
+                  </MealType>
                   <MealName>{todayPlan.breakfast.name}</MealName>
                   <MealCalories>{todayPlan.breakfast.calories} calories</MealCalories>
                 </MealCard>
               )}
               {todayPlan.lunch && (
                 <MealCard onClick={() => navigate('/meal-planner')}>
-                  <MealType>🥗 Lunch</MealType>
+                  <MealType>
+                    <UtensilsCrossed size={16} style={{ marginRight: '0.5rem' }} />
+                    Lunch
+                  </MealType>
                   <MealName>{todayPlan.lunch.name}</MealName>
                   <MealCalories>{todayPlan.lunch.calories} calories</MealCalories>
                 </MealCard>
               )}
               {todayPlan.dinner && (
                 <MealCard onClick={() => navigate('/meal-planner')}>
-                  <MealType>🍽️ Dinner</MealType>
+                  <MealType>
+                    <UtensilsCrossed size={16} style={{ marginRight: '0.5rem' }} />
+                    Dinner
+                  </MealType>
                   <MealName>{todayPlan.dinner.name}</MealName>
                   <MealCalories>{todayPlan.dinner.calories} calories</MealCalories>
                 </MealCard>
               )}
               {todayPlan.snacks?.map((snack, index) => (
                 <MealCard key={snack.id || index} onClick={() => navigate('/meal-planner')}>
-                  <MealType>🍎 Snack {index + 1}</MealType>
+                  <MealType>
+                    <Apple size={16} style={{ marginRight: '0.5rem' }} />
+                    Snack {index + 1}
+                  </MealType>
                   <MealName>{snack.name}</MealName>
                   <MealCalories>{snack.calories} calories</MealCalories>
                 </MealCard>
@@ -508,10 +574,12 @@ const Dashboard: React.FC = () => {
             </MealGrid>
           ) : (
             <EmptyState>
-              <EmptyIcon>🍽️</EmptyIcon>
+              <EmptyIcon>
+                <UtensilsCrossed size={48} />
+              </EmptyIcon>
               <EmptyText>No meal plan for today.</EmptyText>
               <ActionButton onClick={() => navigate('/meal-planner')}>
-                <span>🎯</span>
+                <Target size={20} style={{ marginRight: '0.5rem' }} />
                 Create Meal Plan
               </ActionButton>
             </EmptyState>
@@ -521,11 +589,11 @@ const Dashboard: React.FC = () => {
 
       <QuickActions>
         <ActionButton onClick={() => navigate('/meal-planner')}>
-          <span>📅</span>
+          <Calendar size={20} style={{ marginRight: '0.5rem' }} />
           Plan Your Week
         </ActionButton>
         <ActionButton onClick={() => navigate('/progress')}>
-          <span>📊</span>
+          <BarChart3 size={20} style={{ marginRight: '0.5rem' }} />
           View Progress
         </ActionButton>
       </QuickActions>

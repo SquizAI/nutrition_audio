@@ -1,16 +1,25 @@
 import React, { ReactNode, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import ChatMobile from './ChatMobile';
+import { 
+  Home, 
+  UtensilsCrossed, 
+  BarChart3, 
+  User, 
+  MessageCircle,
+  Sparkles,
+  Mic,
+  TrendingUp
+} from 'lucide-react';
 
-// Premium icons with better visuals
-const icons = {
-  dashboard: '🏠',
-  mealPlanner: '🍽️',
-  progress: '📊',
-  community: '👥',
-  insights: '💡',
-  music: '🎵',
-  profile: '👤',
+// Navigation items configuration
+const navItems = {
+  home: { path: '/', icon: Home, label: 'Home' },
+  mealPlanner: { path: '/meal-planner', icon: UtensilsCrossed, label: 'Meals' },
+  progress: { path: '/progress', icon: BarChart3, label: 'Progress' },
+  profile: { path: '/profile', icon: User, label: 'Profile' },
+  chat: { icon: MessageCircle, label: 'Chat' }
 };
 
 interface LayoutProps {
@@ -54,8 +63,8 @@ const Sidebar = styled.aside<{ $isOpen: boolean }>`
   z-index: 1000;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   
-  @media (max-width: 768px) {
-    display: none; /* Hide sidebar on mobile - use footer navigation instead */
+  @media (max-width: 1023px) {
+    display: none; /* Hide sidebar on tablet/mobile - use footer navigation instead */
   }
 `;
 
@@ -67,9 +76,9 @@ const MainContent = styled.main<{ $sidebarOpen: boolean }>`
   position: relative;
   z-index: 1;
   
-  @media (max-width: 768px) {
+  @media (max-width: 1023px) {
     margin-left: 0;
-    padding-bottom: 6rem; /* Space for mobile footer */
+    padding-bottom: 10rem; /* Increased for better clearance above sticky footer */
   }
 `;
 
@@ -253,28 +262,333 @@ const UpgradeButton = styled.button`
   }
 `;
 
+// Mobile Footer Navigation Component
+const MobileFooter = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.875rem 1rem;
+  z-index: 1000;
+  
+  /* Enhanced safe area insets for all mobile devices */
+  padding-bottom: max(1.25rem, calc(0.875rem + env(safe-area-inset-bottom)));
+  
+  /* Enhanced visual separation */
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  border-top: 2px solid rgba(236, 72, 153, 0.2);
+  
+  @media (min-width: 1024px) {
+    display: none;
+  }
+`;
+
+const MobileNavContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 500px;
+  margin: 0 auto;
+  position: relative;
+`;
+
+const MobileNavSide = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  justify-content: space-around;
+`;
+
+const MobileNavItem = styled.button<{ $active?: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem;
+  background: ${({ $active }) => 
+    $active ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'transparent'};
+  border: none;
+  border-radius: 12px;
+  color: ${({ $active }) => $active ? 'white' : 'rgba(255, 255, 255, 0.7)'};
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 56px; /* Touch-friendly minimum */
+  min-width: 60px;
+  
+  &:hover {
+    color: white;
+    background: ${({ $active }) => 
+      $active ? 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)' : 'rgba(255, 255, 255, 0.1)'};
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const CentralChatButton = styled.button`
+  position: relative;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(236, 72, 153, 0.6);
+  margin: 0 1rem;
+  transform: translateY(-10px); /* Elevate it above other items */
+  
+  &:hover {
+    transform: translateY(-12px) scale(1.05);
+    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.8);
+  }
+  
+  &:active {
+    transform: translateY(-8px) scale(0.95);
+  }
+  
+  &:before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6);
+    z-index: -1;
+    opacity: 0.7;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { 
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    50% { 
+      transform: scale(1.1);
+      opacity: 1;
+    }
+  }
+`;
+
+const ChatStatusIndicator = styled.div<{ $connected: boolean; $minimized: boolean }>`
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: ${({ $connected }) => $connected ? '#22c55e' : '#6b7280'};
+  border: 2px solid white;
+  display: ${({ $minimized }) => $minimized ? 'block' : 'none'};
+  animation: ${({ $connected }) => $connected ? 'pulse 2s ease-in-out infinite' : 'none'};
+  
+  @keyframes pulse {
+    0%, 100% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% { 
+      transform: scale(1.3);
+      opacity: 0.8;
+    }
+  }
+`;
+
+const ChatIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  
+  /* Chat bubble background */
+  &:before {
+    content: '';
+    position: absolute;
+    width: 32px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    z-index: 0;
+  }
+  
+  /* Chat bubble tail */
+  &:after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid rgba(255, 255, 255, 0.2);
+    z-index: 0;
+  }
+`;
+
+const MicrophoneIcon = styled.div`
+  font-size: 1.2rem;
+  z-index: 1;
+  position: relative;
+`;
+
+const ChatLabel = styled.div`
+  font-size: 0.5rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const MobileNavIcon = styled.div`
+  font-size: 1.3rem;
+  line-height: 1;
+`;
+
+const MobileNavLabel = styled.div`
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1;
+`;
+
+const FloatingChatButton = styled.button`
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(236, 72, 153, 0.4);
+  z-index: 999;
+  
+  @media (max-width: 1023px) {
+    display: none; /* Hide on tablet/mobile - use footer button instead */
+  }
+  
+  &:hover {
+    transform: scale(1.05) rotate(5deg);
+    box-shadow: 0 12px 40px rgba(236, 72, 153, 0.6);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  &:before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    z-index: -1;
+    opacity: 0.6;
+    animation: desktop-pulse 3s ease-in-out infinite;
+  }
+  
+  @keyframes desktop-pulse {
+    0%, 100% { 
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    50% { 
+      transform: scale(1.15);
+      opacity: 0.9;
+    }
+  }
+`;
+
+const ChatButtonIcon = styled.div`
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+  position: relative;
+  
+  /* Microphone icon background circle */
+  &:before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: 0;
+  }
+`;
+
+const ChatButtonLabel = styled.div`
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatConnected, setChatConnected] = useState(false);
+  const [chatMinimized, setChatMinimized] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
   
+  const openChat = () => {
+    setChatOpen(true);
+  };
+  
+  const closeChat = () => {
+    setChatOpen(false);
+  };
+  
   const mainNavItems = [
-    { path: '/', label: 'Dashboard', icon: icons.dashboard },
-    { path: '/meal-planner', label: 'Meal Planner', icon: icons.mealPlanner },
-    { path: '/progress', label: 'Progress', icon: icons.progress },
+    { path: '/', label: 'Dashboard', icon: <Home size={20} /> },
+    { path: '/meal-planner', label: 'Meal Planner', icon: <UtensilsCrossed size={20} /> },
+    { path: '/daily-tracker', label: 'Daily Tracker', icon: <BarChart3 size={20} /> },
+    { path: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
   ];
   
   const secondaryNavItems = [
-    { path: '/community', label: 'Community', icon: icons.community },
-    { path: '/insights', label: 'Insights', icon: icons.insights },
-    { path: '/music-mood', label: 'Music & Mood', icon: icons.music },
+    { path: '/community', label: 'Community', icon: <User size={20} /> },
+    { path: '/insights', label: 'Insights', icon: <Sparkles size={20} /> },
+    { path: '/music-mood', label: 'Music & Mood', icon: <MessageCircle size={20} /> },
   ];
   
   const profileNavItems = [
-    { path: '/profile', label: 'Profile', icon: icons.profile },
+    { path: '/profile', label: 'Profile', icon: <User size={20} /> },
+  ];
+  
+  // Mobile navigation items (simplified for footer)
+  const mobileNavItems = [
+    { path: '/', label: 'Home', icon: <Home size={20} /> },
+    { path: '/meal-planner', label: 'Meals', icon: <UtensilsCrossed size={20} /> },
+    { path: '/daily-tracker', label: 'Track', icon: <BarChart3 size={20} /> },
+    { path: '/progress', label: 'Progress', icon: <TrendingUp size={20} /> },
   ];
   
   return (
@@ -282,10 +596,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Sidebar $isOpen={sidebarOpen}>
         <SidebarHeader $isOpen={sidebarOpen}>
           <Logo $isOpen={sidebarOpen}>
-            {sidebarOpen ? 'NutriTrack' : 'NT'}
+            {sidebarOpen ? 'JMEFIT' : 'JME'}
           </Logo>
           <LogoSubtext $isOpen={sidebarOpen}>
-            Professional Nutrition
+            Premium Nutrition
           </LogoSubtext>
           <ToggleButton $isOpen={sidebarOpen} onClick={toggleSidebar}>
             {sidebarOpen ? '←' : '→'}
@@ -362,7 +676,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         <SidebarFooter $isOpen={sidebarOpen}>
           <UpgradeCard $isOpen={sidebarOpen}>
-            <UpgradeTitle>🚀 Upgrade to Pro</UpgradeTitle>
+            <UpgradeTitle>
+              <Sparkles size={16} style={{ marginRight: '0.5rem', display: 'inline' }} />
+              Upgrade to Pro
+            </UpgradeTitle>
             <UpgradeText>
               Unlock unlimited meal plans, custom recipes, and advanced nutrition insights.
             </UpgradeText>
@@ -376,6 +693,62 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <MainContent $sidebarOpen={sidebarOpen}>
         {children}
       </MainContent>
+      
+      {/* Floating Chat Button for Desktop */}
+      <FloatingChatButton onClick={openChat}>
+        <ChatButtonIcon>
+          <Mic size={24} />
+        </ChatButtonIcon>
+        <ChatButtonLabel>Voice AI</ChatButtonLabel>
+      </FloatingChatButton>
+      
+      {/* Mobile Sticky Footer Navigation */}
+      <MobileFooter>
+        <MobileNavContainer>
+          <MobileNavSide>
+            {mobileNavItems.slice(0, 2).map((item) => (
+              <MobileNavItem
+                key={item.path}
+                $active={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+              >
+                <MobileNavIcon>{item.icon}</MobileNavIcon>
+                <MobileNavLabel>{item.label}</MobileNavLabel>
+              </MobileNavItem>
+            ))}
+          </MobileNavSide>
+          
+          {/* Central Chat Button */}
+          <CentralChatButton onClick={openChat}>
+            <ChatIcon>
+              <MicrophoneIcon>
+                <Mic size={18} />
+              </MicrophoneIcon>
+            </ChatIcon>
+            <ChatLabel>Voice AI</ChatLabel>
+            <ChatStatusIndicator $connected={chatConnected} $minimized={chatMinimized} />
+          </CentralChatButton>
+          
+          <MobileNavSide>
+            {mobileNavItems.slice(2, 4).map((item) => (
+              <MobileNavItem
+                key={item.path}
+                $active={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+              >
+                <MobileNavIcon>{item.icon}</MobileNavIcon>
+                <MobileNavLabel>{item.label}</MobileNavLabel>
+              </MobileNavItem>
+            ))}
+          </MobileNavSide>
+        </MobileNavContainer>
+      </MobileFooter>
+      
+      {/* Chat Component */}
+      <ChatMobile 
+        isOpen={chatOpen} 
+        onClose={closeChat}
+      />
     </LayoutContainer>
   );
 };

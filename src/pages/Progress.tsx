@@ -15,7 +15,7 @@ const slideInUp = keyframes`
 
 const PageContainer = styled.div`
   padding: 1rem;
-  padding-bottom: 6rem; /* Space for mobile footer */
+  padding-bottom: 10rem; /* Increased for better clearance above sticky footer */
   min-height: 100vh;
   position: relative;
   
@@ -92,15 +92,15 @@ const TabsContainer = styled.div`
   }
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button<{ $active: boolean }>`
   padding: 1rem 1.25rem;
   background: none;
   border: none;
-  border-bottom: 3px solid ${({ active }) => 
-    active ? '#ec4899' : 'transparent'};
-  color: ${({ active }) => 
-    active ? '#ec4899' : 'rgba(255, 255, 255, 0.6)'};
-  font-weight: ${({ active }) => active ? '700' : '500'};
+  border-bottom: 3px solid ${({ $active }) => 
+    $active ? '#ec4899' : 'transparent'};
+  color: ${({ $active }) => 
+    $active ? '#ec4899' : 'rgba(255, 255, 255, 0.6)'};
+  font-weight: ${({ $active }) => $active ? '700' : '500'};
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -313,9 +313,9 @@ const HistoryDate = styled.div`
   }
 `;
 
-const HistoryValue = styled.div<{ positive?: boolean }>`
-  color: ${({ positive }) => 
-    positive ? '#10b981' : '#ef4444'};
+const HistoryValue = styled.div<{ $positive?: boolean }>`
+  color: ${({ $positive }) => 
+    $positive ? '#10b981' : '#ef4444'};
   font-weight: 600;
   font-size: 0.9rem;
   text-align: right;
@@ -383,7 +383,7 @@ const Progress: React.FC = () => {
             <div>
               <span>{item.value}</span>
               {' '}
-              <HistoryValue positive={item.positive}>
+              <HistoryValue $positive={item.positive}>
                 ({item.change})
               </HistoryValue>
             </div>
@@ -402,25 +402,25 @@ const Progress: React.FC = () => {
       
       <TabsContainer>
         <Tab 
-          active={activeTab === 'weight'} 
+          $active={activeTab === 'weight'} 
           onClick={() => setActiveTab('weight')}
         >
           Weight
         </Tab>
         <Tab 
-          active={activeTab === 'calories'} 
+          $active={activeTab === 'calories'} 
           onClick={() => setActiveTab('calories')}
         >
           Calories
         </Tab>
         <Tab 
-          active={activeTab === 'workouts'} 
+          $active={activeTab === 'workouts'} 
           onClick={() => setActiveTab('workouts')}
         >
           Workouts
         </Tab>
         <Tab 
-          active={activeTab === 'measurements'} 
+          $active={activeTab === 'measurements'} 
           onClick={() => setActiveTab('measurements')}
         >
           Measurements
